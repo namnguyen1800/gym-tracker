@@ -790,17 +790,10 @@ function ensureAudio(){
     if(!AC) return null;
     audioCtx = new AC();
 
-    // Master chain: 3x loudness boost + compressor to avoid clipping
+    // Master gain only — no compressor (it was squashing the boost back down)
     masterGain = audioCtx.createGain();
-    masterGain.gain.value = 9.0;
-    const comp = audioCtx.createDynamicsCompressor();
-    comp.threshold.value = -2;
-    comp.knee.value = 20;
-    comp.ratio.value = 2.5;
-    comp.attack.value = 0.002;
-    comp.release.value = 0.2;
-    masterGain.connect(comp);
-    comp.connect(audioCtx.destination);
+    masterGain.gain.value = 2.5;
+    masterGain.connect(audioCtx.destination);
 
     // Echo (vang) chain: feedback delay for a spacious reverb feel
     echo = audioCtx.createDelay(1.0);
@@ -824,10 +817,10 @@ function beep(freq, dur, delay){
   const t0 = ctx.currentTime + (delay||0);
   // Stack 4 harmonics -> organ-like chord, perceptually much louder than single sine
   const harmonics = [
+    {mult:0.5, amp:0.70},
     {mult:1.0, amp:1.00},
     {mult:2.0, amp:0.55},
-    {mult:3.0, amp:0.35},
-    {mult:4.0, amp:0.22}
+    {mult:3.0, amp:0.30}
   ];
   for(const h of harmonics){
     const osc = ctx.createOscillator();
@@ -846,7 +839,7 @@ function beep(freq, dur, delay){
 
 function playAlarm(){
   for(let i=0;i<7;i++){
-    beep(330, 0.25, i*0.3);
+    beep(880, 0.3, i*0.35);
   }
 }
 
@@ -860,7 +853,7 @@ function startRestTimer(){
     restRemaining--;
     updateRestNum();
     if(restRemaining === 3 || restRemaining === 2 || restRemaining === 1){
-      beep(300, 0.15, 0);
+      beep(660, 0.15, 0);
     }
     if(restRemaining <= 0){
       stopRestTimer();
