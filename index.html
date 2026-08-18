@@ -792,13 +792,13 @@ function ensureAudio(){
 
     // Master chain: 3x loudness boost + compressor to avoid clipping
     masterGain = audioCtx.createGain();
-    masterGain.gain.value = 3.0;
+    masterGain.gain.value = 9.0;
     const comp = audioCtx.createDynamicsCompressor();
-    comp.threshold.value = -10;
-    comp.knee.value = 12;
-    comp.ratio.value = 6;
-    comp.attack.value = 0.003;
-    comp.release.value = 0.25;
+    comp.threshold.value = -2;
+    comp.knee.value = 20;
+    comp.ratio.value = 2.5;
+    comp.attack.value = 0.002;
+    comp.release.value = 0.2;
     masterGain.connect(comp);
     comp.connect(audioCtx.destination);
 
@@ -822,17 +822,26 @@ function beep(freq, dur, delay){
   const ctx = ensureAudio();
   if(!ctx) return;
   const t0 = ctx.currentTime + (delay||0);
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(freq, t0);
-  gain.gain.setValueAtTime(0.0001, t0);
-  gain.gain.exponentialRampToValueAtTime(1.0, t0+0.02);
-  gain.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
-  osc.connect(gain);
-  gain.connect(masterGain);  // dry signal
-  gain.connect(echo);        // send to echo for "vang"
-  osc.start(t0); osc.stop(t0+dur+0.05);
+  // Stack 4 harmonics -> organ-like chord, perceptually much louder than single sine
+  const harmonics = [
+    {mult:1.0, amp:1.00},
+    {mult:2.0, amp:0.55},
+    {mult:3.0, amp:0.35},
+    {mult:4.0, amp:0.22}
+  ];
+  for(const h of harmonics){
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq*h.mult, t0);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(h.amp, t0+0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+    osc.connect(gain);
+    gain.connect(masterGain);  // dry signal
+    gain.connect(echo);        // send to echo for "vang"
+    osc.start(t0); osc.stop(t0+dur+0.05);
+  }
 }
 
 function playAlarm(){
