@@ -780,66 +780,30 @@ function importData(ev){
 const REST_SECONDS = 60;
 let restTimer = null;
 let restRemaining = 0;
-let audioCtx = null;
-let masterGain = null;
-let echo = null, echoFeedback = null, echoWet = null;
+let beepAudio = null, alarmAudio = null;
 
 function ensureAudio(){
-  if(!audioCtx){
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if(!AC) return null;
-    audioCtx = new AC();
-
-    // Master gain only — no compressor (it was squashing the boost back down)
-    masterGain = audioCtx.createGain();
-    masterGain.gain.value = 2.5;
-    masterGain.connect(audioCtx.destination);
-
-    // Echo (vang) chain: feedback delay for a spacious reverb feel
-    echo = audioCtx.createDelay(1.0);
-    echo.delayTime.value = 0.3;
-    echoFeedback = audioCtx.createGain();
-    echoFeedback.gain.value = 0.45;
-    echoWet = audioCtx.createGain();
-    echoWet.gain.value = 0.6;
-    echo.connect(echoFeedback);
-    echoFeedback.connect(echo);
-    echo.connect(echoWet);
-    echoWet.connect(masterGain);
+  if(!beepAudio){
+    beepAudio = new Audio('beep.wav');
+    alarmAudio = new Audio('alarm.wav');
+    beepAudio.preload = 'auto';
+    alarmAudio.preload = 'auto';
   }
-  if(audioCtx.state === 'suspended'){ audioCtx.resume(); }
-  return audioCtx;
 }
 
-function beep(freq, dur, delay){
-  const ctx = ensureAudio();
-  if(!ctx) return;
-  const t0 = ctx.currentTime + (delay||0);
-  // Stack 4 harmonics -> organ-like chord, perceptually much louder than single sine
-  const harmonics = [
-    {mult:0.5, amp:0.70},
-    {mult:1.0, amp:1.00},
-    {mult:2.0, amp:0.55},
-    {mult:3.0, amp:0.30}
-  ];
-  for(const h of harmonics){
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(freq*h.mult, t0);
-    gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.exponentialRampToValueAtTime(h.amp, t0+0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
-    osc.connect(gain);
-    gain.connect(masterGain);  // dry signal
-    gain.connect(echo);        // send to echo for "vang"
-    osc.start(t0); osc.stop(t0+dur+0.05);
+function playBeep(){
+  ensureAudio();
+  if(beepAudio){
+    beepAudio.currentTime = 0;
+    beepAudio.play().catch(()=>{});
   }
 }
 
 function playAlarm(){
-  for(let i=0;i<7;i++){
-    beep(880, 0.3, i*0.35);
+  ensureAudio();
+  if(alarmAudio){
+    alarmAudio.currentTime = 0;
+    alarmAudio.play().catch(()=>{});
   }
 }
 
@@ -853,7 +817,7 @@ function startRestTimer(){
     restRemaining--;
     updateRestNum();
     if(restRemaining === 3 || restRemaining === 2 || restRemaining === 1){
-      beep(660, 0.15, 0);
+      playBeep();
     }
     if(restRemaining <= 0){
       stopRestTimer();
