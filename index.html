@@ -238,6 +238,27 @@
     box-shadow: inset 0 0 0 1px rgba(251,191,36,0.35);
   }
   .data-row{display:flex; gap:12px; margin-top:22px;}
+
+  /* ---------- Rest timer overlay ---------- */
+  #restOverlay{
+    position:fixed; inset:0; z-index:100;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:rgba(10,12,17,0.96);
+    opacity:0; pointer-events:none; transition:opacity .25s;
+  }
+  #restOverlay.show{ opacity:1; pointer-events:auto; }
+  .rest-tag{ font-size:15px; font-weight:700; color:var(--muted); letter-spacing:3px; text-transform:uppercase; }
+  .rest-num{
+    font-size:130px; font-weight:900; line-height:1; margin:8px 0;
+    background:linear-gradient(180deg,#ffffff 0%, #aeb7c8 100%);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .rest-skip{
+    margin-top:26px; padding:15px 34px; border:none; border-radius:16px;
+    background:var(--surface); color:var(--text); font-size:16px; font-weight:800; cursor:pointer;
+    box-shadow: 7px 7px 16px var(--shadow-dark), -7px -7px 16px var(--shadow-light);
+  }
+  .rest-skip:active{ box-shadow: inset 6px 6px 13px var(--shadow-dark), inset -6px -6px 13px var(--shadow-light); }
 </style>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -275,6 +296,12 @@
     </div>
   </div>
 </main>
+
+<div id="restOverlay">
+  <div class="rest-tag">Rest</div>
+  <div class="rest-num" id="restNum">60</div>
+  <button class="rest-skip" onclick="skipRest()">Skip ›</button>
+</div>
 
 <script>
 const DAY_ORDER = ['monday','tuesday','wednesday','thursday'];
@@ -610,6 +637,16 @@ function logRep(day,name,rep){
     delete state.progress[k];
   }
   save(); renderWorkout();
+  if(!isAllDone()) startRestTimer();
+}
+
+function isAllDone(){
+  const day = state.activeDay;
+  const p = PLAN[day];
+  for(const e of p.exercises){
+    if((state.progress[key(day,e.name)]||[]).length < e.sets) return false;
+  }
+  return true;
 }
 
 function logCustom(day,name){
@@ -738,6 +775,74 @@ function importData(ev){
   };
   r.readAsText(file);
 }
+
+// ---------- Rest Timer ----------
+const REST_SECONDS = 60;
+let restTimer = null;
+let restRemaining = 0;
+let audioCtx = null;
+
+function ensureAudio(){
+  if(!audioCtx){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return null;
+    audioCtx = new AC();
+  }
+  if(audioCtx.state === 'suspended'){ audioCtx.resume(); }
+  return audioCtx;
+}
+
+function beep(freq, dur, delay){
+  const ctx = ensureAudio();
+  if(!ctx) return;
+  const t0 = ctx.currentTime + (delay||0);
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(freq, t0);
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(0.5, t0+0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(t0); osc.stop(t0+dur+0.05);
+}
+
+function playAlarm(){
+  for(let i=0;i<4;i++){
+    beep(880, 0.16, i*0.24);
+    beep(660, 0.16, i*0.24 + 0.12);
+  }
+}
+
+function startRestTimer(){
+  stopRestTimer();
+  ensureAudio();
+  restRemaining = REST_SECONDS;
+  document.getElementById('restOverlay').classList.add('show');
+  updateRestNum();
+  restTimer = setInterval(()=>{
+    restRemaining--;
+    updateRestNum();
+    if(restRemaining === 3 || restRemaining === 2 || restRemaining === 1){
+      beep(440, 0.12, 0);
+    }
+    if(restRemaining <= 0){
+      stopRestTimer();
+      playAlarm();
+    }
+  }, 1000);
+}
+
+function updateRestNum(){
+  document.getElementById('restNum').textContent = restRemaining;
+}
+
+function stopRestTimer(){
+  if(restTimer){ clearInterval(restTimer); restTimer = null; }
+  document.getElementById('restOverlay').classList.remove('show');
+}
+
+function skipRest(){ stopRestTimer(); }
 
 // ---------- Init ----------
 const autoD = autoDay();
