@@ -809,7 +809,7 @@ function beep(freq, dur, delay){
 
 function playAlarm(){
   for(let i=0;i<10;i++){
-    beep(600, 0.2, i*0.3);
+    beep(330, 0.25, i*0.3);
   }
 }
 
@@ -823,7 +823,7 @@ function startRestTimer(){
     restRemaining--;
     updateRestNum();
     if(restRemaining === 3 || restRemaining === 2 || restRemaining === 1){
-      beep(440, 0.12, 0);
+      beep(300, 0.15, 0);
     }
     if(restRemaining <= 0){
       stopRestTimer();
