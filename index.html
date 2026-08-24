@@ -290,6 +290,12 @@
     box-shadow: 7px 7px 16px var(--shadow-dark), -7px -7px 16px var(--shadow-light);
   }
   .rest-skip:active{ box-shadow: inset 6px 6px 13px var(--shadow-dark), inset -6px -6px 13px var(--shadow-light); }
+/* ===== fireworks (new record) ===== */
+#fw{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:block;}
+.fw-banner{position:fixed;top:12%;left:0;right:0;text-align:center;pointer-events:none;z-index:10000;display:none;}
+.fw-banner h1{font-size:44px;font-weight:900;color:#fff;margin:0;text-shadow:0 0 24px rgba(255,190,80,0.85);animation:fwpop .5s cubic-bezier(.2,1.6,.4,1);}
+.fw-banner .fw-sub{color:#fbbf24;font-size:20px;font-weight:800;margin-top:8px;letter-spacing:3px;text-shadow:0 0 14px rgba(251,191,36,0.6);}
+@keyframes fwpop{0%{transform:scale(.25);opacity:0}100%{transform:scale(1);opacity:1}}
 </style>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -697,6 +703,23 @@ function logRep(day,name,rep){
   const prog = state.progress[k]||[];
   if(prog.length >= ex.sets) return;
   prog.push(rep);
+  // --- new record fireworks ---
+  (function(){
+    const _setIdx = prog.length - 1;
+    const _hist = state.history[k] || [];
+    const _w = state.weights[k];
+    let _best = -1;
+    for(const _e of _hist){
+      if(String(_e.weight) === String(_w) && _e.reps && _e.reps[_setIdx] != null){
+        const _v = parseInt(_e.reps[_setIdx]);
+        if(!isNaN(_v) && _v > _best) _best = _v;
+      }
+    }
+    const _cur = parseInt(rep);
+    if(!isNaN(_cur) && _best >= 0 && _cur > _best){
+      launchFireworks(_cur);
+    }
+  })();
   state.progress[k] = prog;
   let finished = false;
   if(prog.length >= ex.sets){
@@ -976,6 +999,64 @@ document.getElementById('todayLabel').textContent = 'Today: ' + todayMMDD();
 state.activeDay = autoD;
 renderTabs();
 renderWorkout();
+</script>
+<canvas id="fw"></canvas>
+<div class="fw-banner"><h1>&#127942; New Record!</h1><div class="fw-sub" id="fw-sub">PERSONAL BEST</div></div>
+<script>
+(function(){
+const c=document.getElementById('fw'), x=c.getContext('2d');
+let W=0,H=0;
+function resize(){W=c.width=innerWidth;H=c.height=innerHeight;}
+resize(); addEventListener('resize',resize);
+const particles=[];
+const COLORS=['#ff5f6d','#ffc371','#60a5fa','#c084fc','#34d399','#fbbf24','#f472b6','#22d3ee'];
+function boom(bx,by){
+const n=70;
+for(let i=0;i<n;i++){
+const a=Math.random()*Math.PI*2;
+const sp=Math.random()*6.5+2.2;
+particles.push({x:bx,y:by,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,decay:Math.random()*0.02+0.009,r:Math.random()*2.6+1.4,c:COLORS[(Math.random()*COLORS.length)|0]});
+}
+}
+let rafId=null;
+function loop(){
+x.clearRect(0,0,W,H);
+for(let i=particles.length-1;i>=0;i--){
+const p=particles[i];
+p.x+=p.vx; p.y+=p.vy; p.vy+=0.06; p.vx*=0.985; p.vy*=0.985;
+p.life-=p.decay;
+if(p.life<=0){particles.splice(i,1);continue;}
+x.globalAlpha=p.life;
+x.fillStyle=p.c;
+x.beginPath(); x.arc(p.x,p.y,p.r,0,Math.PI*2); x.fill();
+}
+x.globalAlpha=1;
+if(particles.length>0){rafId=requestAnimationFrame(loop);}
+else{x.clearRect(0,0,W,H); rafId=null;}
+}
+function volley(){
+boom(W*0.3,H*0.32);
+boom(W*0.7,H*0.34);
+boom(W*0.5,H*0.26);
+}
+window.launchFireworks=function(bestReps){
+const sub=document.getElementById('fw-sub');
+if(sub && bestReps!=null) sub.textContent=bestReps+' REPS - PERSONAL BEST';
+const banner=document.querySelector('.fw-banner');
+if(banner) banner.style.display='block';
+resize();
+volley();
+setTimeout(function(){boom(W*0.5,H*0.28);},500);
+setTimeout(volley,1100);
+setTimeout(function(){boom(W*0.6,H*0.42);},1700);
+if(!rafId) rafId=requestAnimationFrame(loop);
+setTimeout(function(){
+particles.length=0;
+x.clearRect(0,0,W,H);
+if(banner) banner.style.display='none';
+},3400);
+};
+})();
 </script>
 </body>
 </html>
