@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -290,25 +290,6 @@
     box-shadow: 7px 7px 16px var(--shadow-dark), -7px -7px 16px var(--shadow-light);
   }
   .rest-skip:active{ box-shadow: inset 6px 6px 13px var(--shadow-dark), inset -6px -6px 13px var(--shadow-light); }
-
-  /* ---------- Fireworks (New Record) ---------- */
-  #fireworkOverlay{
-    position:fixed; inset:0; z-index:200; pointer-events:none;
-    opacity:0; transition:opacity .3s;
-  }
-  #fireworkOverlay.show{ opacity:1; }
-  #fwCanvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
-  .fw-banner{ position:absolute; top:12%; left:0; right:0; text-align:center; }
-  .fw-banner h1{
-    font-size:42px; font-weight:900; color:#fff; margin:0;
-    text-shadow:0 0 24px rgba(255,190,80,0.85);
-    animation:fwpop .5s cubic-bezier(.2,1.6,.4,1);
-  }
-  .fw-banner .fw-sub{
-    color:#fbbf24; font-size:18px; font-weight:800; margin-top:8px; letter-spacing:3px;
-    text-shadow:0 0 14px rgba(251,191,36,0.6);
-  }
-  @keyframes fwpop{0%{transform:scale(.25);opacity:0}100%{transform:scale(1);opacity:1}}
 </style>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -320,7 +301,7 @@
 <header>
   <div class="head-top">
     <div>
-      <h1>ðŸ’ª Gym<span class="dot">.</span>Tracker</h1>
+      <h1>💪 Gym<span class="dot">.</span>Tracker</h1>
       <div class="sub" id="todayLabel"></div>
     </div>
     <div class="view-toggle">
@@ -340,8 +321,8 @@
     <div class="filter-row" id="histFilter"></div>
     <div id="historyList"></div>
     <div class="data-row">
-      <button class="nav-btn" onclick="exportData()">â¬‡ï¸ Export</button>
-      <button class="nav-btn" onclick="document.getElementById('importFile').click()">â¬†ï¸ Import</button>
+      <button class="nav-btn" onclick="exportData()">⬇️ Export</button>
+      <button class="nav-btn" onclick="document.getElementById('importFile').click()">⬆️ Import</button>
       <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importData(event)">
     </div>
   </div>
@@ -354,13 +335,8 @@
   </div>
   <div class="rest-bottom">
     <div class="rest-info" id="restInfo"></div>
-    <button class="rest-skip" onclick="skipRest()">Skip â€º</button>
+    <button class="rest-skip" onclick="skipRest()">Skip ›</button>
   </div>
-</div>
-
-<div id="fireworkOverlay">
-  <canvas id="fwCanvas"></canvas>
-  <div class="fw-banner"><h1>ðŸ† New Record!</h1><div class="fw-sub" id="fwSub">PERSONAL BEST</div></div>
 </div>
 
 <script>
@@ -368,7 +344,7 @@ const DAY_ORDER = ['monday','tuesday','wednesday','thursday'];
 
 const PLAN = {
   monday:{
-    label:'MONDAY', emoji:'ðŸŸ¢', color:'#34d399', title:'Chest + Rear Delts',
+    label:'MONDAY', emoji:'🟢', color:'#34d399', title:'Chest + Rear Delts',
     exercises:[
       {name:'Dumbbell Bench Press', sets:4, weight:50, type:'reps'},
       {name:'Incline Dumbbell Press', sets:3, weight:40, type:'reps'},
@@ -377,7 +353,7 @@ const PLAN = {
     ]
   },
   tuesday:{
-    label:'TUESDAY', emoji:'ðŸ”µ', color:'#60a5fa', title:'Back + Biceps',
+    label:'TUESDAY', emoji:'🔵', color:'#60a5fa', title:'Back + Biceps',
     exercises:[
       {name:'One-Arm Dumbbell Row', sets:4, weight:55, type:'reps'},
       {name:'Chest-Supported Dumbbell Row', sets:3, weight:45, type:'reps'},
@@ -386,7 +362,7 @@ const PLAN = {
     ]
   },
   wednesday:{
-    label:'WEDNESDAY', emoji:'ðŸŸ¡', color:'#fbbf24', title:'Legs + Core',
+    label:'WEDNESDAY', emoji:'🟡', color:'#fbbf24', title:'Legs + Core',
     exercises:[
       {name:'Goblet Squat', sets:4, weight:55, type:'reps'},
       {name:'Dumbbell Bulgarian Split Squat', sets:3, weight:0, type:'reps'},
@@ -396,7 +372,7 @@ const PLAN = {
     ]
   },
   thursday:{
-    label:'THURSDAY', emoji:'ðŸŸ£', color:'#c084fc', title:'Shoulders + Arms',
+    label:'THURSDAY', emoji:'🟣', color:'#c084fc', title:'Shoulders + Arms',
     exercises:[
       {name:'Dumbbell Shoulder Press', sets:4, weight:40, type:'reps'},
       {name:'Dumbbell Lateral Raise', sets:3, weight:20, type:'reps'},
@@ -550,7 +526,7 @@ function renderWorkout(){
   const day = state.activeDay;
   const p = PLAN[day];
   setAccent(p.color);
-  document.getElementById('dayTitle').innerHTML = p.emoji+' '+p.label+' <span>â€” '+p.title+'</span>';
+  document.getElementById('dayTitle').innerHTML = p.emoji+' '+p.label+' <span>— '+p.title+'</span>';
 
   const idx = state.activeEx[day]||0;
   const ex = p.exercises[idx];
@@ -575,7 +551,7 @@ function renderWorkout(){
   if(allDone){
     const d = document.createElement('div');
     d.className = 'done-banner';
-    d.textContent = 'ðŸŽ‰ All done! Great work ðŸ’ª';
+    d.textContent = '🎉 All done! Great work 💪';
     list.prepend(d);
   }
 
@@ -596,18 +572,18 @@ function renderWorkout(){
   // sticky header: name + highest/last
   let stickyStat = '';
   if(done){
-    stickyStat = '<span class="es-done">âœ“ Done</span>';
+    stickyStat = '<span class="es-done">✓ Done</span>';
   }else if(ex.type==='reps'){
-    stickyStat = 'highest <b>'+(st.highest!==null?st.highest:'Â·')+'</b> Â· last <b>'+(st.last!==null?st.last:'Â·')+'</b>';
+    stickyStat = 'highest <b>'+(st.highest!==null?st.highest:'·')+'</b> · last <b>'+(st.last!==null?st.last:'·')+'</b>';
   }else{
-    stickyStat = ex.sets+' sets Â· â± time';
+    stickyStat = ex.sets+' sets · ⏱ time';
   }
   card += '<div class="ex-sticky"><div class="es-name">'+ex.name+'</div><div class="es-stat">'+stickyStat+'</div></div>';
 
   // weight stepper
   let wr = '<div class="weight-row">';
-  wr += '<button class="wbtn" onclick="changeWeight(\''+day+'\',\''+ex.name+'\',-5)">âˆ’</button>';
-  wr += '<div><div class="wval">'+(ex.type==='time'?'â±':(weight>0?weight+' <span class="wunit">lbs</span>':'<span class="wunit">body</span>'))+'</div></div>';
+  wr += '<button class="wbtn" onclick="changeWeight(\''+day+'\',\''+ex.name+'\',-5)">−</button>';
+  wr += '<div><div class="wval">'+(ex.type==='time'?'⏱':(weight>0?weight+' <span class="wunit">lbs</span>':'<span class="wunit">body</span>'))+'</div></div>';
   wr += '<button class="wbtn" onclick="changeWeight(\''+day+'\',\''+ex.name+'\',+5)">+</button>';
   wr += '</div>';
 
@@ -617,7 +593,7 @@ function renderWorkout(){
   let sets = '<div class="sets">';
   for(let s=0;s<ex.sets;s++){
     let cls = 'set';
-    let val = 'Â·';
+    let val = '·';
     if(done && lastH && lastH.reps[s]!==undefined){
       cls += ' filled';
       val = lastH.reps[s];
@@ -634,7 +610,7 @@ function renderWorkout(){
   // big display
   let disp;
   if(done){
-    disp = '<div class="big-display"><div class="set-label">âœ“ Done</div></div>';
+    disp = '<div class="big-display"><div class="set-label">✓ Done</div></div>';
   }else{
     disp = '<div class="big-display"><div class="set-label">Set '+(prog.length+1)+'</div></div>';
   }
@@ -664,13 +640,13 @@ function renderWorkout(){
   }else{
     const mem = (state.customReps && state.customReps[k]) || '';
     cx = '<div class="custom-row">'
-       + '<button class="cstep" onclick="customRepStep(\''+day+'\',\''+ex.name+'\',-1)">âˆ’</button>'
+       + '<button class="cstep" onclick="customRepStep(\''+day+'\',\''+ex.name+'\',-1)">−</button>'
        + '<input class="custom-input" id="'+cid+'" placeholder="Custom" inputmode="numeric" value="'+mem+'">'
        + '<button class="cstep" onclick="customRepStep(\''+day+'\',\''+ex.name+'\',1)">+</button>'
        + '<button class="ok-btn" onclick="logCustom(\''+day+'\',\''+ex.name+'\')">OK</button>'
        + '</div>';
   }
-  cx += '<button class="delete-btn" onclick="deleteRep(\''+day+'\',\''+ex.name+'\')">âŒ« Delete last set</button>';
+  cx += '<button class="delete-btn" onclick="deleteRep(\''+day+'\',\''+ex.name+'\')">⌫ Delete last set</button>';
 
   card += wr + sets + disp + (done ? progHint(day,ex.name) : '') + btns + cx;
   card += '</div>';
@@ -678,8 +654,8 @@ function renderWorkout(){
 
   // nav
   let nav = '<div class="nav-row">';
-  nav += '<button class="nav-btn" '+(idx===0?'disabled':'')+' onclick="goEx(-1)">â€¹ Prev</button>';
-  nav += '<button class="nav-btn" '+(idx>=total-1?'disabled':'')+' onclick="goEx(1)">Next â€º</button>';
+  nav += '<button class="nav-btn" '+(idx===0?'disabled':'')+' onclick="goEx(-1)">‹ Prev</button>';
+  nav += '<button class="nav-btn" '+(idx>=total-1?'disabled':'')+' onclick="goEx(1)">Next ›</button>';
   nav += '</div>';
   list.innerHTML += nav;
 
@@ -720,14 +696,6 @@ function logRep(day,name,rep){
   if(!ex) return;
   const prog = state.progress[k]||[];
   if(prog.length >= ex.sets) return;
-  const setIndex = prog.length;
-  const weight = state.weights[k];
-  let newRecord = false;
-  if(ex.type === 'reps'){
-    const v = parseInt(rep);
-    const st = setStats(day, name, setIndex, weight);
-    newRecord = !isNaN(v) && st.highest !== null && st.highest > 0 && v > st.highest;
-  }
   prog.push(rep);
   state.progress[k] = prog;
   let finished = false;
@@ -745,7 +713,6 @@ function logRep(day,name,rep){
     if(i < total-1) state.activeEx[day] = i+1;
   }
   renderWorkout();
-  if(newRecord) launchFireworks(rep + ' REPS — PERSONAL BEST');
   const allDone = isAllDone();
   if(!allDone){
     if(finished) window.scrollTo({top:0, behavior:'smooth'});
@@ -804,7 +771,7 @@ function progHint(day,name){
   if(!last || !last.reps || last.reps.length<3) return '';
   const allTop = last.reps.every(r=>parseInt(r)>=12);
   if(!allTop) return '';
-  return '<div class="prog-hint">ðŸŽ¯ 12 reps on all sets â€” add weight next time!</div>';
+  return '<div class="prog-hint">🎯 12 reps on all sets — add weight next time!</div>';
 }
 
 // ---------- History ----------
@@ -821,7 +788,7 @@ let histFilterDay = 'all';
 function renderHistory(){
   const filter = document.getElementById('histFilter');
   filter.innerHTML = '';
-  const chips = [['all','All'],['monday','ðŸŸ¢ Mon'],['tuesday','ðŸ”µ Tue'],['wednesday','ðŸŸ¡ Wed'],['thursday','ðŸŸ£ Thu']];
+  const chips = [['all','All'],['monday','🟢 Mon'],['tuesday','🔵 Tue'],['wednesday','🟡 Wed'],['thursday','🟣 Thu']];
   for(const [v,label] of chips){
     const c = document.createElement('div');
     c.className = 'chip'+(histFilterDay===v?' on':'');
@@ -847,14 +814,14 @@ function renderHistory(){
     let trend = '';
     if(prev && e.type==='reps'){
       const a = repSum(last.reps), b = repSum(prev.reps);
-      if(a>b) trend = '<span class="trend-up">â–² +'+(a-b)+'</span>';
-      else if(a<b) trend = '<span class="trend-down">â–¼ '+(a-b)+'</span>';
+      if(a>b) trend = '<span class="trend-up">▲ +'+(a-b)+'</span>';
+      else if(a<b) trend = '<span class="trend-down">▼ '+(a-b)+'</span>';
       else trend = '<span class="trend-same">=</span>';
     }
 
     const head = document.createElement('div');
     head.className = 'hist-ex-head';
-    head.innerHTML = '<div><span class="n">'+PLAN[e.day].emoji+' '+e.name+'</span><br><span class="c">'+entries.length+' sessions Â· last '+last.date+'</span></div><div class="c">'+trend+'</div>';
+    head.innerHTML = '<div><span class="n">'+PLAN[e.day].emoji+' '+e.name+'</span><br><span class="c">'+entries.length+' sessions · last '+last.date+'</span></div><div class="c">'+trend+'</div>';
     head.onclick = ()=> wrap.classList.toggle('open');
     wrap.appendChild(head);
 
@@ -864,11 +831,11 @@ function renderHistory(){
     for(let s=1;s<=e.sets;s++) tbl += '<th>S'+s+'</th>';
     tbl += '<th>Total</th></tr></thead><tbody>';
     for(const en of entries){
-      tbl += '<tr><td>'+en.date+'</td><td>'+(e.type==='time'?'â±':(en.weight>0?en.weight+' lbs':'â€”'))+'</td>';
+      tbl += '<tr><td>'+en.date+'</td><td>'+(e.type==='time'?'⏱':(en.weight>0?en.weight+' lbs':'—'))+'</td>';
       for(let s=0;s<e.sets;s++){
-        tbl += '<td class="rep">'+(en.reps[s]!==undefined?en.reps[s]:'Â·')+'</td>';
+        tbl += '<td class="rep">'+(en.reps[s]!==undefined?en.reps[s]:'·')+'</td>';
       }
-      tbl += '<td class="rep">'+(e.type==='time'?'â€”':repSum(en.reps))+'</td></tr>';
+      tbl += '<td class="rep">'+(e.type==='time'?'—':repSum(en.reps))+'</td></tr>';
     }
     tbl += '</tbody></table>';
     body.innerHTML = tbl;
@@ -961,14 +928,14 @@ function nextSetInfo(day){
 function renderRestInfo(info){
   const el = document.getElementById('restInfo');
   if(!info){ el.innerHTML=''; return; }
-  const w = info.type==='time' ? 'â± time' : (info.weight>0 ? info.weight+' lbs' : 'bodyweight');
+  const w = info.type==='time' ? '⏱ time' : (info.weight>0 ? info.weight+' lbs' : 'bodyweight');
   let hl = '';
   if(info.type==='reps'){
-    hl = '<div class="rest-info-hl">highest <b>'+(info.highest!==null?info.highest:'Â·')+'</b> Â· last <b>'+(info.last!==null?info.last:'Â·')+'</b></div>';
+    hl = '<div class="rest-info-hl">highest <b>'+(info.highest!==null?info.highest:'·')+'</b> · last <b>'+(info.last!==null?info.last:'·')+'</b></div>';
   }
   el.innerHTML =
     '<div class="rest-info-name">'+info.name+'</div>'+
-    '<div class="rest-info-sub">Set '+(info.setIndex+1)+' / '+info.sets+' Â· '+w+'</div>'+
+    '<div class="rest-info-sub">Set '+(info.setIndex+1)+' / '+info.sets+' · '+w+'</div>'+
     hl;
 }
 
@@ -1002,70 +969,6 @@ function stopRestTimer(){
 }
 
 function skipRest(){ stopRestTimer(); }
-
-// ---------- Fireworks (New Record) ----------
-let fwRunning = false, fwTimer = null, fwParticles = [];
-let fwCtx = null, fwW = 0, fwH = 0;
-const FW_COLORS = ['#ff5f6d','#ffc371','#60a5fa','#c084fc','#34d399','#fbbf24','#f472b6','#22d3ee'];
-
-function fwInit(){
-  const c = document.getElementById('fwCanvas');
-  fwCtx = c.getContext('2d');
-  function resize(){ fwW = c.width = innerWidth; fwH = c.height = innerHeight; }
-  resize();
-  addEventListener('resize', resize);
-}
-
-function fwBoom(bx, by){
-  const n = 70;
-  for(let i=0;i<n;i++){
-    const a = Math.random()*Math.PI*2;
-    const sp = Math.random()*6.5+2.2;
-    fwParticles.push({x:bx,y:by,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,decay:Math.random()*0.02+0.009,r:Math.random()*2.6+1.4,c:FW_COLORS[(Math.random()*FW_COLORS.length)|0]});
-  }
-}
-
-function fwLoop(){
-  fwCtx.globalCompositeOperation='source-over';
-  fwCtx.fillStyle='rgba(11,14,20,0.22)';
-  fwCtx.fillRect(0,0,fwW,fwH);
-  fwCtx.globalCompositeOperation='lighter';
-  for(let i=fwParticles.length-1;i>=0;i--){
-    const p = fwParticles[i];
-    p.x+=p.vx; p.y+=p.vy; p.vy+=0.06; p.vx*=0.985; p.vy*=0.985;
-    p.life-=p.decay;
-    if(p.life<=0){ fwParticles.splice(i,1); continue; }
-    fwCtx.globalAlpha=p.life;
-    fwCtx.fillStyle=p.c;
-    fwCtx.beginPath(); fwCtx.arc(p.x,p.y,p.r,0,Math.PI*2); fwCtx.fill();
-  }
-  fwCtx.globalAlpha=1;
-  if(fwRunning) requestAnimationFrame(fwLoop);
-}
-
-function fwVolley(){
-  fwBoom(fwW*0.3, fwH*0.32);
-  fwBoom(fwW*0.7, fwH*0.34);
-  fwBoom(fwW*0.5, fwH*0.26);
-}
-
-function launchFireworks(label){
-  if(!fwCtx) fwInit();
-  document.getElementById('fwSub').textContent = label || 'PERSONAL BEST';
-  fwCtx.clearRect(0,0,fwW,fwH);
-  fwParticles = [];
-  document.getElementById('fireworkOverlay').classList.add('show');
-  if(!fwRunning){ fwRunning = true; fwLoop(); }
-  fwVolley();
-  setTimeout(()=>fwBoom(fwW*0.5, fwH*0.28), 400);
-  setTimeout(fwVolley, 1000);
-  setTimeout(()=>fwBoom(fwW*0.6, fwH*0.42), 1600);
-  if(fwTimer) clearTimeout(fwTimer);
-  fwTimer = setTimeout(()=>{
-    fwRunning = false;
-    document.getElementById('fireworkOverlay').classList.remove('show');
-  }, 3200);
-}
 
 // ---------- Init ----------
 const autoD = autoDay();
