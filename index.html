@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -46,7 +46,6 @@
   }
 
   header{
-    position:sticky; top:0; z-index:20;
     padding:14px 16px 10px;
     background:rgba(20,22,29,0.85);
     backdrop-filter:blur(14px);
@@ -107,6 +106,20 @@
       12px 12px 28px var(--shadow-dark),
       -12px -12px 28px var(--shadow-light);
   }
+
+  /* Sticky exercise header (name + highest/last) */
+  .ex-sticky{
+    position:sticky; top:0; z-index:15;
+    background:var(--surface);
+    padding:14px 0 12px; margin:0 0 12px;
+    border-bottom:1px solid rgba(255,255,255,0.06);
+    text-align:center;
+  }
+  .es-name{font-size:22px; font-weight:800; line-height:1.25; letter-spacing:.2px;}
+  .es-stat{color:var(--muted); font-size:15px; font-weight:700; margin-top:5px;}
+  .es-stat b{color:var(--text); font-size:17px;}
+  .es-done{color:#34d399; font-weight:800;}
+
   .ex-head{text-align:center;}
   .ex-idx{
     display:inline-block; font-size:12px; font-weight:800; letter-spacing:1px; color:var(--accent);
@@ -173,13 +186,19 @@
     transform:scale(.96); color:var(--accent);
   }
 
-  .custom-row{display:flex; gap:10px; margin-top:14px;}
+  .custom-row{display:flex; gap:10px; margin-top:14px; align-items:stretch;}
   .custom-input{
-    flex:1; height:54px; border:none; border-radius:16px; background:var(--surface);
+    flex:1; min-width:0; height:54px; border:none; border-radius:16px; background:var(--surface);
     color:var(--text); font-size:18px; font-weight:700; padding:0 14px; text-align:center;
     box-shadow: inset 6px 6px 13px var(--shadow-dark), inset -6px -6px 13px var(--shadow-light);
     outline:none;
   }
+  .cstep{
+    width:52px; height:54px; border:none; border-radius:16px; cursor:pointer;
+    background:var(--surface); color:var(--text); font-size:24px; font-weight:800;
+    box-shadow: 6px 6px 14px var(--shadow-dark), -6px -6px 14px var(--shadow-light);
+  }
+  .cstep:active{ box-shadow: inset 5px 5px 12px var(--shadow-dark), inset -5px -5px 12px var(--shadow-light); transform:scale(.96); }
   .ok-btn{
     width:70px; height:54px; border:none; border-radius:16px; cursor:pointer;
     background:var(--accent); color:#0b0e14; font-size:16px; font-weight:900;
@@ -242,19 +261,31 @@
   /* ---------- Rest timer overlay ---------- */
   #restOverlay{
     position:fixed; inset:0; z-index:100;
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    display:flex; flex-direction:column; align-items:center;
+    justify-content:space-between;
+    padding:12vh 20px 40px;
     background:rgba(10,12,17,0.96);
     opacity:0; pointer-events:none; transition:opacity .25s;
   }
   #restOverlay.show{ opacity:1; pointer-events:auto; }
+  .rest-top{ text-align:center; }
   .rest-tag{ font-size:15px; font-weight:700; color:var(--muted); letter-spacing:3px; text-transform:uppercase; }
   .rest-num{
     font-size:130px; font-weight:900; line-height:1; margin:8px 0;
     background:linear-gradient(180deg,#ffffff 0%, #aeb7c8 100%);
     -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
   }
+  .rest-bottom{ width:100%; max-width:380px; display:flex; flex-direction:column; gap:16px; }
+  .rest-info{
+    text-align:center; background:var(--surface); border-radius:18px; padding:16px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 8px 8px 20px rgba(0,0,0,0.4);
+  }
+  .rest-info-name{ font-size:19px; font-weight:800; }
+  .rest-info-sub{ color:var(--muted); font-size:14px; font-weight:700; margin-top:4px; }
+  .rest-info-hl{ font-size:14px; margin-top:8px; color:var(--muted); }
+  .rest-info-hl b{ color:var(--text); font-size:16px; }
   .rest-skip{
-    margin-top:26px; padding:15px 34px; border:none; border-radius:16px;
+    padding:15px 34px; border:none; border-radius:16px;
     background:var(--surface); color:var(--text); font-size:16px; font-weight:800; cursor:pointer;
     box-shadow: 7px 7px 16px var(--shadow-dark), -7px -7px 16px var(--shadow-light);
   }
@@ -298,9 +329,14 @@
 </main>
 
 <div id="restOverlay">
-  <div class="rest-tag">Rest</div>
-  <div class="rest-num" id="restNum">60</div>
-  <button class="rest-skip" onclick="skipRest()">Skip ›</button>
+  <div class="rest-top">
+    <div class="rest-tag">Rest</div>
+    <div class="rest-num" id="restNum">60</div>
+  </div>
+  <div class="rest-bottom">
+    <div class="rest-info" id="restInfo"></div>
+    <button class="rest-skip" onclick="skipRest()">Skip ›</button>
+  </div>
 </div>
 
 <script>
@@ -330,9 +366,9 @@ const PLAN = {
     exercises:[
       {name:'Goblet Squat', sets:4, weight:55, type:'reps'},
       {name:'Dumbbell Bulgarian Split Squat', sets:3, weight:0, type:'reps'},
-      {name:'Standing Calf Raise', sets:3, weight:25, type:'reps'},
       {name:'Seated Bench Crunch', sets:3, weight:0, type:'reps'},
-      {name:'Plank', sets:2, weight:0, type:'time'},
+      {name:'Standing Calf Raise', sets:3, weight:25, type:'reps'},
+      {name:'Plank', sets:2, weight:0, type:'time', rest:90},
     ]
   },
   thursday:{
@@ -385,6 +421,7 @@ function defaultState(){
     weights,
     history: seedHistory(),
     progress: {},
+    customReps: {},
     activeDay: DAY_ORDER[0],
     activeEx: {monday:0, tuesday:0, wednesday:0, thursday:0}
   };
@@ -397,6 +434,7 @@ try{
   if(!state.weights) state.weights = defaultState().weights;
   if(!state.history) state.history = seedHistory();
   if(!state.progress) state.progress = {};
+  if(!state.customReps) state.customReps = {};
   if(!state.activeDay) state.activeDay = DAY_ORDER[0];
   if(!state.activeEx) state.activeEx = {monday:0, tuesday:0, wednesday:0, thursday:0};
 }catch(e){
@@ -427,14 +465,21 @@ function lastEntry(day,name){
   return h[h.length-1]||null;
 }
 
-function setStats(day,name,setIndex){
+function isExDoneToday(day,name){
+  const h = state.history[key(day,name)]||[];
+  const last = h[h.length-1];
+  return !!(last && last.date === todayMMDD());
+}
+
+function setStats(day,name,setIndex,weight){
   const h = state.history[key(day,name)]||[];
   let highest=null, last=null, highestDate=null;
-  for(const en of h){
+  const filtered = (weight===undefined || weight===null) ? h : h.filter(en => en.weight === weight);
+  for(const en of filtered){
     const v = parseInt(en.reps[setIndex]);
     if(!isNaN(v)){ if(highest===null || v>highest){ highest=v; highestDate=en.date; } }
   }
-  const le = h[h.length-1];
+  const le = filtered[filtered.length-1];
   if(le){
     const lv = parseInt(le.reps[setIndex]);
     if(!isNaN(lv)) last = lv;
@@ -450,7 +495,6 @@ function repSum(reps){
 
 function setAccent(color){
   document.documentElement.style.setProperty('--accent', color);
-  // derive soft accent from hex
   const hex = color.replace('#','');
   const r=parseInt(hex.substr(0,2),16), g=parseInt(hex.substr(2,2),16), b=parseInt(hex.substr(4,2),16);
   document.documentElement.style.setProperty('--accent-soft', 'rgba('+r+','+g+','+b+',0.16)');
@@ -491,17 +535,14 @@ function renderWorkout(){
   list.innerHTML = '';
 
   // all done?
-  let allDone = true;
-  for(const e of p.exercises){
-    if((state.progress[key(day,e.name)]||[]).length < e.sets){ allDone=false; break; }
-  }
+  const allDone = isAllDone();
 
   // progress indicator
   let pr = '<div class="ex-progress"><span class="ex-count"><b>'+(idx+1)+'</b> / '+total+'</span><div class="ex-dots">';
   for(let i=0;i<total;i++){
     let c = 'xdot';
     if(i===idx) c += ' on';
-    else if((state.progress[key(day,p.exercises[i].name)]||[]).length >= p.exercises[i].sets) c += ' done';
+    else if(isExDoneToday(day, p.exercises[i].name)) c += ' done';
     pr += '<span class="'+c+'"></span>';
   }
   pr += '</div></div>';
@@ -517,30 +558,52 @@ function renderWorkout(){
   // exercise card
   const k = key(day, ex.name);
   const prog = state.progress[k]||[];
-  const done = prog.length >= ex.sets;
+  const completedToday = isExDoneToday(day, ex.name);
+  const done = completedToday || prog.length >= ex.sets;
   const weight = state.weights[k];
 
+  let st = {highest:null, last:null};
+  if(ex.type==='reps'){
+    st = setStats(day, ex.name, prog.length, weight);
+  }
+
   let card = '<div class="ex" id="exCard">';
-  card += '<div class="ex-head">';
-  card += '<div class="ex-idx">EXERCISE '+(idx+1)+'</div>';
-  card += '<div class="ex-name">'+ex.name+'</div>';
-  card += '<div class="ex-meta">'+ex.sets+' sets · '+(ex.type==='time'?'time':(weight>0?weight+' lbs':'bodyweight'))+'</div>';
-  card += '</div>';
+
+  // sticky header: name + highest/last
+  let stickyStat = '';
+  if(done){
+    stickyStat = '<span class="es-done">✓ Done</span>';
+  }else if(ex.type==='reps'){
+    stickyStat = 'highest <b>'+(st.highest!==null?st.highest:'·')+'</b> · last <b>'+(st.last!==null?st.last:'·')+'</b>';
+  }else{
+    stickyStat = ex.sets+' sets · ⏱ time';
+  }
+  card += '<div class="ex-sticky"><div class="es-name">'+ex.name+'</div><div class="es-stat">'+stickyStat+'</div></div>';
 
   // weight stepper
   let wr = '<div class="weight-row">';
-  wr += '<button class="wbtn" onclick="changeWeight(\''+day+'\',\''+ex.name+'\',-2.5)">−</button>';
+  wr += '<button class="wbtn" onclick="changeWeight(\''+day+'\',\''+ex.name+'\',-5)">−</button>';
   wr += '<div><div class="wval">'+(ex.type==='time'?'⏱':(weight>0?weight+' <span class="wunit">lbs</span>':'<span class="wunit">body</span>'))+'</div></div>';
-  wr += '<button class="wbtn" onclick="changeWeight(\''+day+'\',\''+ex.name+'\',+2.5)">+</button>';
+  wr += '<button class="wbtn" onclick="changeWeight(\''+day+'\',\''+ex.name+'\',+5)">+</button>';
   wr += '</div>';
 
   // set dots
+  const hist = state.history[k]||[];
+  const lastH = hist[hist.length-1];
   let sets = '<div class="sets">';
   for(let s=0;s<ex.sets;s++){
     let cls = 'set';
-    if(s < prog.length) cls += ' filled';
-    else if(s === prog.length && !done) cls += ' cur';
-    sets += '<div class="'+cls+'"><div class="sl">SET '+(s+1)+'</div><div class="rv">'+(s<prog.length?prog[s]:'·')+'</div></div>';
+    let val = '·';
+    if(done && lastH && lastH.reps[s]!==undefined){
+      cls += ' filled';
+      val = lastH.reps[s];
+    }else if(s < prog.length){
+      cls += ' filled';
+      val = prog[s];
+    }else if(s === prog.length){
+      cls += ' cur';
+    }
+    sets += '<div class="'+cls+'"><div class="sl">SET '+(s+1)+'</div><div class="rv">'+val+'</div></div>';
   }
   sets += '</div>';
 
@@ -549,13 +612,7 @@ function renderWorkout(){
   if(done){
     disp = '<div class="big-display"><div class="set-label">✓ Done</div></div>';
   }else{
-    const cur = prog.length + 1;
-    let statHtml = '';
-    if(ex.type==='reps'){
-      const st = setStats(day, ex.name, prog.length);
-      statHtml = '<div class="set-stat">highest = <b>'+(st.highest!==null?st.highest:'·')+'</b>'+(st.highest!==null&&st.highestDate?' ('+st.highestDate+')':'')+' · last = <b>'+(st.last!==null?st.last:'·')+'</b></div>';
-    }
-    disp = '<div class="big-display"><div class="set-label">Set '+cur+'</div>'+statHtml+'</div>';
+    disp = '<div class="big-display"><div class="set-label">Set '+(prog.length+1)+'</div></div>';
   }
 
   // rep buttons
@@ -574,10 +631,21 @@ function renderWorkout(){
 
   // custom input + delete
   const cid = 'ci_'+k.replace(/[^a-z0-9]/gi,'');
-  let cx = '<div class="custom-row">';
-  cx += '<input class="custom-input" id="'+cid+'" placeholder="Custom" inputmode="numeric">';
-  cx += '<button class="ok-btn" onclick="logCustom(\''+day+'\',\''+ex.name+'\')">OK</button>';
-  cx += '</div>';
+  let cx;
+  if(ex.type==='time'){
+    cx = '<div class="custom-row">'
+       + '<input class="custom-input" id="'+cid+'" placeholder="Custom (e.g. 75s)" inputmode="numeric">'
+       + '<button class="ok-btn" onclick="logCustom(\''+day+'\',\''+ex.name+'\')">OK</button>'
+       + '</div>';
+  }else{
+    const mem = (state.customReps && state.customReps[k]) || '';
+    cx = '<div class="custom-row">'
+       + '<button class="cstep" onclick="customRepStep(\''+day+'\',\''+ex.name+'\',-1)">−</button>'
+       + '<input class="custom-input" id="'+cid+'" placeholder="Custom" inputmode="numeric" value="'+mem+'">'
+       + '<button class="cstep" onclick="customRepStep(\''+day+'\',\''+ex.name+'\',1)">+</button>'
+       + '<button class="ok-btn" onclick="logCustom(\''+day+'\',\''+ex.name+'\')">OK</button>'
+       + '</div>';
+  }
   cx += '<button class="delete-btn" onclick="deleteRep(\''+day+'\',\''+ex.name+'\')">⌫ Delete last set</button>';
 
   card += wr + sets + disp + (done ? progHint(day,ex.name) : '') + btns + cx;
@@ -630,21 +698,37 @@ function logRep(day,name,rep){
   if(prog.length >= ex.sets) return;
   prog.push(rep);
   state.progress[k] = prog;
+  let finished = false;
   if(prog.length >= ex.sets){
     const h = state.history[k]||[];
     h.push({date: todayMMDD(), weight: state.weights[k], reps: prog.slice()});
     state.history[k] = h;
     delete state.progress[k];
+    finished = true;
   }
-  save(); renderWorkout();
-  if(!isAllDone()) startRestTimer();
+  save();
+  if(finished){
+    const total = PLAN[day].exercises.length;
+    let i = state.activeEx[day]||0;
+    if(i < total-1) state.activeEx[day] = i+1;
+  }
+  renderWorkout();
+  const allDone = isAllDone();
+  if(!allDone){
+    if(finished) window.scrollTo({top:0, behavior:'smooth'});
+    startRestTimer(ex.rest || 60);
+  }
 }
 
 function isAllDone(){
   const day = state.activeDay;
   const p = PLAN[day];
   for(const e of p.exercises){
-    if((state.progress[key(day,e.name)]||[]).length < e.sets) return false;
+    const k = key(day,e.name);
+    const prog = state.progress[k]||[];
+    if(prog.length >= e.sets) continue;
+    if(isExDoneToday(day, e.name)) continue;
+    return false;
   }
   return true;
 }
@@ -655,7 +739,23 @@ function logCustom(day,name){
   const el = document.getElementById(id);
   const v = el.value.trim();
   if(v==='') return;
+  if(!state.customReps) state.customReps = {};
+  state.customReps[k] = v;
+  save();
   logRep(day,name,v);
+}
+
+function customRepStep(day,name,delta){
+  const k = key(day,name);
+  const id = 'ci_'+k.replace(/[^a-z0-9]/gi,'');
+  const el = document.getElementById(id);
+  let v = parseInt(el.value);
+  if(isNaN(v)) v = 12;
+  v = Math.max(1, v + delta);
+  el.value = v;
+  if(!state.customReps) state.customReps = {};
+  state.customReps[k] = v;
+  save();
 }
 
 function deleteRep(day,name){
@@ -777,7 +877,6 @@ function importData(ev){
 }
 
 // ---------- Rest Timer ----------
-const REST_SECONDS = 60;
 let restTimer = null;
 let restRemaining = 0;
 let beepAudio = null, alarmAudio = null;
@@ -807,10 +906,44 @@ function playAlarm(){
   }
 }
 
-function startRestTimer(){
+function nextSetInfo(day){
+  const p = PLAN[day];
+  for(const ex of p.exercises){
+    const k = key(day,ex.name);
+    if(isExDoneToday(day, ex.name)) continue;
+    const prog = state.progress[k]||[];
+    if(prog.length < ex.sets){
+      const weight = state.weights[k];
+      let highest=null, last=null;
+      if(ex.type==='reps'){
+        const st = setStats(day, ex.name, prog.length, weight);
+        highest = st.highest; last = st.last;
+      }
+      return {name:ex.name, type:ex.type, weight, setIndex:prog.length, sets:ex.sets, highest, last};
+    }
+  }
+  return null;
+}
+
+function renderRestInfo(info){
+  const el = document.getElementById('restInfo');
+  if(!info){ el.innerHTML=''; return; }
+  const w = info.type==='time' ? '⏱ time' : (info.weight>0 ? info.weight+' lbs' : 'bodyweight');
+  let hl = '';
+  if(info.type==='reps'){
+    hl = '<div class="rest-info-hl">highest <b>'+(info.highest!==null?info.highest:'·')+'</b> · last <b>'+(info.last!==null?info.last:'·')+'</b></div>';
+  }
+  el.innerHTML =
+    '<div class="rest-info-name">'+info.name+'</div>'+
+    '<div class="rest-info-sub">Set '+(info.setIndex+1)+' / '+info.sets+' · '+w+'</div>'+
+    hl;
+}
+
+function startRestTimer(seconds){
   stopRestTimer();
   ensureAudio();
-  restRemaining = REST_SECONDS;
+  restRemaining = seconds || 60;
+  renderRestInfo(nextSetInfo(state.activeDay));
   document.getElementById('restOverlay').classList.add('show');
   updateRestNum();
   restTimer = setInterval(()=>{
@@ -846,4 +979,3 @@ renderWorkout();
 </script>
 </body>
 </html>
-
