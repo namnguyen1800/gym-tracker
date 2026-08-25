@@ -328,6 +328,7 @@
     <div class="filter-row" id="histFilter"></div>
     <div id="historyList"></div>
     <div class="data-row">
+      <button class="nav-btn" onclick="backupData()">💾 Backup</button>
       <button class="nav-btn" onclick="exportData()">⬇️ Export</button>
       <button class="nav-btn" onclick="document.getElementById('importFile').click()">⬆️ Import</button>
       <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importData(event)">
@@ -884,6 +885,17 @@ function renderHistory(){
 
   if(exs.every(e=>(state.history[key(e.day,e.name)]||[]).length===0)){
     list.innerHTML = '<div class="empty">No progress data yet.</div>';
+  }
+}
+
+async function backupData(){
+  const json = JSON.stringify(state);
+  const file = new File([json], 'gym_backup.json', {type:'application/json'});
+  const data = {files:[file], title:'Gym Backup'};
+  if(navigator.canShare && navigator.canShare(data)){
+    try{ await navigator.share(data); }catch(e){ /* user cancelled */ }
+  } else {
+    exportData();
   }
 }
 
