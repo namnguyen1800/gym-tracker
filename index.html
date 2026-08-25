@@ -449,11 +449,26 @@ try{
 
 function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
 
+// migrate old M/D dates (no year) -> YYYY/M/D (one-time)
+(function(){
+  const y = new Date().getFullYear();
+  let changed = false;
+  for(const k in state.history){
+    for(const en of state.history[k]){
+      if(en.date && /^\d{1,2}\/\d{1,2}$/.test(en.date)){
+        en.date = y + '/' + en.date;
+        changed = true;
+      }
+    }
+  }
+  if(changed) save();
+})();
+
 function key(day,name){ return day+'|'+name; }
 
 function todayMMDD(){
   const d = new Date();
-  return (d.getMonth()+1)+'/'+d.getDate();
+  return d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate();
 }
 
 function todayDow(){
@@ -876,7 +891,7 @@ function exportData(){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'gym_backup_'+todayMMDD().replace('/','-')+'.json';
+  a.download = 'gym_backup_'+todayMMDD().replaceAll('/','-')+'.json';
   document.body.appendChild(a);
   a.click();
   a.remove();
