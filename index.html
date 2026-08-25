@@ -890,7 +890,7 @@ function renderHistory(){
 async function backupData(){
   const json = JSON.stringify(state);
   const file = new File([json], 'gym_backup.json', {type:'application/json'});
-  const data = {files:[file], title:'Gym Backup'};
+  const data = {files:[file]};
   if(navigator.canShare && navigator.canShare(data)){
     try{ await navigator.share(data); }catch(e){ /* user cancelled */ }
   } else {
