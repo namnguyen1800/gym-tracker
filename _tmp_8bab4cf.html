@@ -153,8 +153,6 @@
   .set.cur .sl{color:var(--accent);}
   .set.filled{box-shadow: inset 5px 5px 12px var(--shadow-dark), inset -5px -5px 12px var(--shadow-light);}
   .set.filled .rv{color:var(--accent);}
-  .set.aim{background:rgba(252,165,165,0.16); box-shadow: inset 0 0 0 1.5px #fca5a5, 5px 5px 12px var(--shadow-dark), -5px -5px 12px var(--shadow-light);}
-  .set.aim .sl{color:#fca5a5;}
 
   /* Big display */
   .big-display{
@@ -264,9 +262,8 @@
   #restOverlay{
     position:fixed; inset:0; z-index:100;
     display:flex; flex-direction:column; align-items:center;
-    justify-content:center;
-    gap:28px;
-    padding:15vh 20px 15vh;
+    justify-content:space-between;
+    padding:12vh 20px 40px;
     background:rgba(10,12,17,0.96);
     opacity:0; pointer-events:none; transition:opacity .25s;
   }
@@ -295,7 +292,7 @@
   .rest-skip:active{ box-shadow: inset 6px 6px 13px var(--shadow-dark), inset -6px -6px 13px var(--shadow-light); }
 /* ===== fireworks (new record) ===== */
 #fw{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:block;}
-.fw-banner{position:fixed;top:50%;transform:translateY(-50%);left:0;right:0;text-align:center;pointer-events:none;z-index:10000;display:none;}
+.fw-banner{position:fixed;top:12%;left:0;right:0;text-align:center;pointer-events:none;z-index:10000;display:none;}
 .fw-banner h1{font-size:44px;font-weight:900;color:#fff;margin:0;text-shadow:0 0 24px rgba(255,190,80,0.85);animation:fwpop .5s cubic-bezier(.2,1.6,.4,1);}
 .fw-banner .fw-sub{color:#fbbf24;font-size:20px;font-weight:800;margin-top:8px;letter-spacing:3px;text-shadow:0 0 14px rgba(251,191,36,0.6);}
 @keyframes fwpop{0%{transform:scale(.25);opacity:0}100%{transform:scale(1);opacity:1}}
@@ -330,7 +327,7 @@
     <div class="filter-row" id="histFilter"></div>
     <div id="historyList"></div>
     <div class="data-row">
-      <button class="nav-btn" onclick="backupData()">💾 Backup</button>
+      <button class="nav-btn" onclick="exportData()">⬇️ Export</button>
       <button class="nav-btn" onclick="document.getElementById('importFile').click()">⬆️ Import</button>
       <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importData(event)">
     </div>
@@ -431,7 +428,6 @@ function defaultState(){
     history: seedHistory(),
     progress: {},
     customReps: {},
-    aimSets: {},
     activeDay: DAY_ORDER[0],
     activeEx: {monday:0, tuesday:0, wednesday:0, thursday:0}
   };
@@ -445,7 +441,6 @@ try{
   if(!state.history) state.history = seedHistory();
   if(!state.progress) state.progress = {};
   if(!state.customReps) state.customReps = {};
-  if(!state.aimSets) state.aimSets = {};
   if(!state.activeDay) state.activeDay = DAY_ORDER[0];
   if(!state.activeEx) state.activeEx = {monday:0, tuesday:0, wednesday:0, thursday:0};
 }catch(e){
@@ -470,10 +465,6 @@ function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
 })();
 
 function key(day,name){ return day+'|'+name; }
-
-function aimSet(day,name){
-  return state.aimSets[key(day,name)]||0;
-}
 
 function todayMMDD(){
   const d = new Date();
@@ -604,8 +595,7 @@ function renderWorkout(){
   if(done){
     stickyStat = '<span class="es-done">✓ Done</span>';
   }else if(ex.type==='reps'){
-    const hd = st.highestDate ? ' ('+st.highestDate.replace(/^\d{4}\//,'')+')' : '';
-    stickyStat = 'highest <b>'+(st.highest!==null?st.highest:'·')+'</b>'+hd+' · last <b>'+(st.last!==null?st.last:'·')+'</b>';
+    stickyStat = 'highest <b>'+(st.highest!==null?st.highest:'·')+'</b> · last <b>'+(st.last!==null?st.last:'·')+'</b>';
   }else{
     stickyStat = ex.sets+' sets · ⏱ time';
   }
@@ -624,7 +614,6 @@ function renderWorkout(){
   let sets = '<div class="sets">';
   for(let s=0;s<ex.sets;s++){
     let cls = 'set';
-    if(ex.type === 'reps' && s === aimSet(day, ex.name)) cls += ' aim';
     let val = '·';
     if(done && lastH && lastH.reps[s]!==undefined){
       cls += ' filled';
@@ -635,7 +624,7 @@ function renderWorkout(){
     }else if(s === prog.length){
       cls += ' cur';
     }
-    sets += '<div class="'+cls+'"><div class="sl">SET '+(s+1)+(cls.indexOf('aim')>=0?' · AIM':'')+'</div><div class="rv">'+val+'</div></div>';
+    sets += '<div class="'+cls+'"><div class="sl">SET '+(s+1)+'</div><div class="rv">'+val+'</div></div>';
   }
   sets += '</div>';
 
@@ -719,7 +708,6 @@ function changeWeight(day,name,delta){
   let w = state.weights[k]||0;
   w = Math.max(0, Math.round((w+delta)*10)/10);
   state.weights[k] = w;
-  if(delta > 0) state.aimSets[k] = 0;
   save(); renderWorkout();
 }
 
@@ -730,25 +718,23 @@ function logRep(day,name,rep){
   const prog = state.progress[k]||[];
   if(prog.length >= ex.sets) return;
   prog.push(rep);
-  // --- new record fireworks + aim-set advance ---
-  const _setIdx = prog.length - 1;
-  const _hist = state.history[k] || [];
-  const _w = state.weights[k];
-  let _best = -1;
-  for(const _e of _hist){
-    if(String(_e.weight) === String(_w) && _e.reps && _e.reps[_setIdx] != null){
-      const _v = parseInt(_e.reps[_setIdx]);
-      if(!isNaN(_v) && _v > _best) _best = _v;
+  // --- new record fireworks ---
+  (function(){
+    const _setIdx = prog.length - 1;
+    const _hist = state.history[k] || [];
+    const _w = state.weights[k];
+    let _best = -1;
+    for(const _e of _hist){
+      if(String(_e.weight) === String(_w) && _e.reps && _e.reps[_setIdx] != null){
+        const _v = parseInt(_e.reps[_setIdx]);
+        if(!isNaN(_v) && _v > _best) _best = _v;
+      }
     }
-  }
-  const _cur = parseInt(rep);
-  const isPR = !isNaN(_cur) && _cur > 0 && (_best < 0 || _cur > _best);
-  if(isPR){
-    launchFireworks(_cur);
-    if(ex.type === 'reps' && _setIdx === aimSet(day, name)){
-      state.aimSets[k] = (_setIdx + 1) % ex.sets;
+    const _cur = parseInt(rep);
+    if(!isNaN(_cur) && _best >= 0 && _cur > _best){
+      launchFireworks(_cur);
     }
-  }
+  })();
   state.progress[k] = prog;
   let finished = false;
   if(prog.length >= ex.sets){
@@ -768,7 +754,7 @@ function logRep(day,name,rep){
   const allDone = isAllDone();
   if(!allDone){
     if(finished) window.scrollTo({top:0, behavior:'smooth'});
-    startRestTimer(finished ? 150 : (ex.rest || 60));
+    startRestTimer(ex.rest || 60);
   }
 }
 
@@ -865,16 +851,10 @@ function renderHistory(){
 
     let trend = '';
     if(prev && e.type==='reps'){
-      if(last.weight > prev.weight){
-        trend = '<span class="trend-up">▲ +'+(last.weight-prev.weight)+' lbs</span>';
-      }else if(last.weight < prev.weight){
-        trend = '<span class="trend-down">▼ '+Math.abs(last.weight-prev.weight)+' lbs</span>';
-      }else{
-        const a = repSum(last.reps), b = repSum(prev.reps);
-        if(a>b) trend = '<span class="trend-up">▲ +'+(a-b)+'</span>';
-        else if(a<b) trend = '<span class="trend-down">▼ '+(a-b)+'</span>';
-        else trend = '<span class="trend-same">=</span>';
-      }
+      const a = repSum(last.reps), b = repSum(prev.reps);
+      if(a>b) trend = '<span class="trend-up">▲ +'+(a-b)+'</span>';
+      else if(a<b) trend = '<span class="trend-down">▼ '+(a-b)+'</span>';
+      else trend = '<span class="trend-same">=</span>';
     }
 
     const head = document.createElement('div');
@@ -903,17 +883,6 @@ function renderHistory(){
 
   if(exs.every(e=>(state.history[key(e.day,e.name)]||[]).length===0)){
     list.innerHTML = '<div class="empty">No progress data yet.</div>';
-  }
-}
-
-async function backupData(){
-  const json = JSON.stringify(state);
-  const file = new File([json], 'gym_backup.json', {type:'application/json'});
-  const data = {files:[file]};
-  if(navigator.canShare && navigator.canShare(data)){
-    try{ await navigator.share(data); }catch(e){ /* user cancelled */ }
-  } else {
-    exportData();
   }
 }
 
@@ -1018,12 +987,12 @@ function startRestTimer(seconds){
   restTimer = setInterval(()=>{
     restRemaining--;
     updateRestNum();
-    if(restRemaining === 2 || restRemaining === 1){
+    if(restRemaining === 3 || restRemaining === 2 || restRemaining === 1){
       playBeep();
     }
     if(restRemaining <= 0){
       stopRestTimer();
-      playBeep();
+      playAlarm();
     }
   }, 1000);
 }
@@ -1081,9 +1050,9 @@ if(particles.length>0){rafId=requestAnimationFrame(loop);}
 else{x.clearRect(0,0,W,H); rafId=null;}
 }
 function volley(){
-boom(W*0.3,H*0.50);
-boom(W*0.7,H*0.52);
-boom(W*0.5,H*0.46);
+boom(W*0.3,H*0.32);
+boom(W*0.7,H*0.34);
+boom(W*0.5,H*0.26);
 }
 window.launchFireworks=function(bestReps){
 const sub=document.getElementById('fw-sub');
@@ -1092,9 +1061,9 @@ const banner=document.querySelector('.fw-banner');
 if(banner) banner.style.display='block';
 resize();
 volley();
-setTimeout(function(){boom(W*0.5,H*0.48);},500);
+setTimeout(function(){boom(W*0.5,H*0.28);},500);
 setTimeout(volley,1100);
-setTimeout(function(){boom(W*0.6,H*0.58);},1700);
+setTimeout(function(){boom(W*0.6,H*0.42);},1700);
 if(!rafId) rafId=requestAnimationFrame(loop);
 setTimeout(function(){
 particles.length=0;
