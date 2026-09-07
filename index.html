@@ -142,7 +142,7 @@
   .wsub{color:var(--muted); font-size:12px; text-align:center; margin-top:2px;}
 
   /* Set dots */
-  .sets{display:flex; gap:8px; justify-content:center; margin:14px 0;}
+  .sets{display:flex; gap:8px; justify-content:center; margin:14px 0; touch-action:pan-y;}
   .set{
     flex:0 0 auto; min-width:54px; padding:8px 4px; border-radius:14px;
     background:var(--surface); text-align:center;
@@ -339,7 +339,7 @@
 
 <div id="restOverlay">
   <div class="rest-top">
-    <div class="rest-tag">Rest</div>
+    <div class="rest-tag" id="restTag">Rest</div>
     <div class="rest-num" id="restNum">60</div>
   </div>
   <div class="rest-bottom">
@@ -472,7 +472,30 @@ function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
 function key(day,name){ return day+'|'+name; }
 
 function aimSet(day,name){
-  return state.aimSets[key(day,name)]||0;
+  const k = key(day,name);
+  const ex = PLAN[day].exercises.find(e=>e.name===name);
+  if(ex && ex.type === 'reps'){
+    const backfillIdx = backfillAimSet(day, name, ex);
+    if(backfillIdx !== null) return backfillIdx;
+  }
+  return state.aimSets[k]||0;
+}
+
+// "Đổ dồn": nếu 1 set sau đang có kỷ lục CAO HƠN set ngay trước nó (ở mức tạ hiện tại),
+// set trước đó coi là đang bị bỏ lại → aim tự nhảy về set SỚM NHẤT bị vượt mặt.
+// Không có set nào bị vượt → trả null để dùng aim đã lưu (luật PR-advance cũ).
+function backfillAimSet(day,name,ex){
+  const weight = state.weights[key(day,name)];
+  const records = [];
+  for(let s=0;s<ex.sets;s++){
+    records.push(setStats(day,name,s,weight).highest);
+  }
+  for(let s=0;s<records.length-1;s++){
+    if(records[s]!=null && records[s+1]!=null && records[s+1] > records[s]){
+      return s;
+    }
+  }
+  return null;
 }
 
 function todayMMDD(){
@@ -700,6 +723,7 @@ function renderWorkout(){
       const dx = e.changedTouches[0].clientX - sx;
       if(Math.abs(dx)>50) goEx(dx<0?1:-1);
     }, {passive:true});
+    attachAimControl(cardEl, day, ex.name);
   }
 }
 
@@ -729,6 +753,16 @@ function logRep(day,name,rep){
   if(!ex) return;
   const prog = state.progress[k]||[];
   if(prog.length >= ex.sets) return;
+  if(ex.type === 'time'){
+    startPlankTimer(day, name, rep);
+    return;
+  }
+  commitRep(day, name, ex, k, rep);
+}
+
+function commitRep(day,name,ex,k,rep){
+  const prog = state.progress[k]||[];
+  if(prog.length >= ex.sets) return;
   prog.push(rep);
   // --- new record fireworks + aim-set advance ---
   const _setIdx = prog.length - 1;
@@ -744,7 +778,7 @@ function logRep(day,name,rep){
   const _cur = parseInt(rep);
   const isPR = !isNaN(_cur) && _cur > 0 && (_best < 0 || _cur > _best);
   if(isPR){
-    launchFireworks(_cur);
+    launchFireworks(_cur, ex.type);
     if(ex.type === 'reps' && _setIdx === aimSet(day, name)){
       state.aimSets[k] = (_setIdx + 1) % ex.sets;
     }
@@ -824,6 +858,84 @@ function progHint(day,name){
   const allTop = last.reps.every(r=>parseInt(r)>=12);
   if(!allTop) return '';
   return '<div class="prog-hint">🎯 12 reps on all sets — add weight next time!</div>';
+}
+
+// ---------- Aim set (manual drag + double-tap) ----------
+function setAim(day, name, s){
+  const k = key(day,name);
+  const ex = PLAN[day].exercises.find(e=>e.name===name);
+  if(!ex || ex.type !== 'reps') return;
+  if(s < 0 || s >= ex.sets) return;
+  if(state.aimSets[k] === s) return;
+  state.aimSets[k] = s;
+  save(); renderWorkout();
+}
+
+function aimIndexFromPoint(setEls, x, y){
+  for(let i=0;i<setEls.length;i++){
+    const r = setEls[i].getBoundingClientRect();
+    if(x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return i;
+  }
+  let best = 0, bestDist = Infinity;
+  setEls.forEach((el,i)=>{
+    const r = el.getBoundingClientRect();
+    const cx = r.left + r.width/2;
+    const d = Math.abs(x - cx);
+    if(d < bestDist){ bestDist = d; best = i; }
+  });
+  return best;
+}
+
+function highlightAim(setEls, idx){
+  setEls.forEach((el,i)=> el.classList.toggle('aim', i===idx));
+}
+
+function attachAimControl(cardEl, day, name){
+  const ex = PLAN[day].exercises.find(e=>e.name===name);
+  if(!ex || ex.type !== 'reps') return;
+  const setsEl = cardEl.querySelector('.sets');
+  if(!setsEl) return;
+  const setEls = Array.from(setsEl.querySelectorAll('.set'));
+  let dragging = false;
+  let lastTap = 0;
+  let startX = 0, startY = 0;
+
+  setsEl.addEventListener('touchstart', (e)=>{
+    dragging = false;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  }, {passive:true});
+
+  setsEl.addEventListener('touchmove', (e)=>{
+    const dx = Math.abs(e.touches[0].clientX - startX);
+    const dy = Math.abs(e.touches[0].clientY - startY);
+    if(dx > dy && dx > 6){
+      dragging = true;
+      const idx = aimIndexFromPoint(setEls, e.touches[0].clientX, e.touches[0].clientY);
+      if(idx >= 0) highlightAim(setEls, idx);
+      e.preventDefault();
+    }
+  }, {passive:false});
+
+  setsEl.addEventListener('touchend', (e)=>{
+    e.stopPropagation();
+    const x = e.changedTouches[0].clientX;
+    const y = e.changedTouches[0].clientY;
+    if(dragging){
+      const idx = aimIndexFromPoint(setEls, x, y);
+      if(idx >= 0) setAim(day, name, idx);
+      dragging = false;
+    } else {
+      const now = Date.now();
+      if(now - lastTap < 300){
+        const idx = aimIndexFromPoint(setEls, x, y);
+        if(idx >= 0) setAim(day, name, idx);
+        lastTap = 0;
+      } else {
+        lastTap = now;
+      }
+    }
+  });
 }
 
 // ---------- History ----------
@@ -945,6 +1057,53 @@ function importData(ev){
   r.readAsText(file);
 }
 
+// ---------- Plank Timer ----------
+let plankTimer = null;
+let plankRemaining = 0;
+let plankPending = null;
+let plankMode = false;
+
+function startPlankTimer(day, name, rep){
+  stopRestTimer();
+  stopPlankTimer();
+  const secs = parseInt(rep);
+  if(isNaN(secs) || secs <= 0){
+    alert('Invalid time. Enter a positive number of seconds.');
+    return;
+  }
+  ensureAudio();
+  plankPending = {day, name, rep};
+  plankMode = true;
+  plankRemaining = secs;
+  document.getElementById('restTag').textContent = 'Planking';
+  const infoEl = document.getElementById('restInfo');
+  infoEl.innerHTML = '<div class="rest-info-name">'+name+'</div><div class="rest-info-sub">Hold plank · '+rep+'</div>';
+  document.getElementById('restOverlay').classList.add('show');
+  updatePlankNum();
+  plankTimer = setInterval(()=>{
+    plankRemaining--;
+    updatePlankNum();
+    if(plankRemaining === 2 || plankRemaining === 1) playBeep();
+    if(plankRemaining <= 0){
+      stopPlankTimer();
+      playBeep();
+      const p = plankPending;
+      plankPending = null;
+      plankMode = false;
+      const ex = PLAN[p.day].exercises.find(e=>e.name===p.name);
+      commitRep(p.day, p.name, ex, key(p.day, p.name), p.rep);
+    }
+  }, 1000);
+}
+
+function updatePlankNum(){
+  document.getElementById('restNum').textContent = plankRemaining;
+}
+
+function stopPlankTimer(){
+  if(plankTimer){ clearInterval(plankTimer); plankTimer = null; }
+}
+
 // ---------- Rest Timer ----------
 let restTimer = null;
 let restRemaining = 0;
@@ -1011,6 +1170,7 @@ function renderRestInfo(info){
 function startRestTimer(seconds){
   stopRestTimer();
   ensureAudio();
+  document.getElementById('restTag').textContent = 'Rest';
   restRemaining = seconds || 60;
   renderRestInfo(nextSetInfo(state.activeDay));
   document.getElementById('restOverlay').classList.add('show');
@@ -1037,7 +1197,16 @@ function stopRestTimer(){
   document.getElementById('restOverlay').classList.remove('show');
 }
 
-function skipRest(){ stopRestTimer(); }
+function skipRest(){
+  if(plankMode){
+    plankPending = null;
+    plankMode = false;
+    stopPlankTimer();
+    document.getElementById('restOverlay').classList.remove('show');
+    return;
+  }
+  stopRestTimer();
+}
 
 // ---------- Init ----------
 const autoD = autoDay();
@@ -1085,9 +1254,9 @@ boom(W*0.3,H*0.50);
 boom(W*0.7,H*0.52);
 boom(W*0.5,H*0.46);
 }
-window.launchFireworks=function(bestReps){
+window.launchFireworks=function(bestReps,unit){
 const sub=document.getElementById('fw-sub');
-if(sub && bestReps!=null) sub.textContent=bestReps+' REPS - PERSONAL BEST';
+if(sub && bestReps!=null) sub.textContent=bestReps+' '+(unit==='time'?'SECONDS':'REPS')+' - PERSONAL BEST';
 const banner=document.querySelector('.fw-banner');
 if(banner) banner.style.display='block';
 resize();
