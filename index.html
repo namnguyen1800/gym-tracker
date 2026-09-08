@@ -214,6 +214,8 @@
     box-shadow: 5px 5px 12px var(--shadow-dark), -5px -5px 12px var(--shadow-light);
   }
   .delete-btn:active{ box-shadow: inset 5px 5px 12px var(--shadow-dark), inset -5px -5px 12px var(--shadow-light); color:#f87171; }
+  .delete-btn[disabled]{ opacity:.35; box-shadow:none; cursor:default; }
+  .delete-btn[disabled]:active{ box-shadow:none; color:var(--muted); }
 
   /* Nav */
   .nav-row{display:flex; gap:12px; margin:4px 0 8px;}
@@ -433,7 +435,8 @@ function defaultState(){
     customReps: {},
     aimSets: {},
     activeDay: DAY_ORDER[0],
-    activeEx: {monday:0, tuesday:0, wednesday:0, thursday:0}
+    activeEx: {monday:0, tuesday:0, wednesday:0, thursday:0},
+    undo: []
   };
 }
 
@@ -448,6 +451,7 @@ try{
   if(!state.aimSets) state.aimSets = {};
   if(!state.activeDay) state.activeDay = DAY_ORDER[0];
   if(!state.activeEx) state.activeEx = {monday:0, tuesday:0, wednesday:0, thursday:0};
+  if(!Array.isArray(state.undo)) state.undo = [];
 }catch(e){
   state = defaultState();
 }
@@ -701,7 +705,12 @@ function renderWorkout(){
        + '<button class="ok-btn" onclick="logCustom(\''+day+'\',\''+ex.name+'\')">OK</button>'
        + '</div>';
   }
-  cx += '<button class="delete-btn" onclick="deleteRep(\''+day+'\',\''+ex.name+'\')">⌫ Delete last set</button>';
+  const delTarget = deletableSet(day, ex.name);
+  if(delTarget){
+    cx += '<button class="delete-btn" onclick="deleteRep(\''+day+'\',\''+ex.name+'\')">⌫ Delete SET '+(delTarget.setIndex+1)+' · '+delTarget.val+'</button>';
+  }else{
+    cx += '<button class="delete-btn" disabled>⌫ Nothing to delete</button>';
+  }
 
   card += wr + sets + disp + (done ? progHint(day,ex.name) : '') + btns + cx;
   card += '</div>';
@@ -763,6 +772,7 @@ function logRep(day,name,rep){
 function commitRep(day,name,ex,k,rep){
   const prog = state.progress[k]||[];
   if(prog.length >= ex.sets) return;
+  pushUndo(k, prog.length + 1 >= ex.sets);
   prog.push(rep);
   // --- new record fireworks + aim-set advance ---
   const _setIdx = prog.length - 1;
@@ -844,10 +854,73 @@ function customRepStep(day,name,delta){
   save();
 }
 
-function deleteRep(day,name){
+// ---------- Undo: xoá lùi set đã ghi (kể cả khi bài đã "đóng sổ") ----------
+// Set cuối cùng làm bài finish → cả loạt set rời state.progress vào state.history,
+// nên deleteRep cũ (chỉ đụng progress) thành no-op im lặng.
+// highest KHÔNG được lưu — setStats() quét lại history mỗi lần render — nên chỉ cần
+// gỡ entry sai khỏi history là highest cũ tự quay về. Riêng aimSets thì lưu thật,
+// nên phải chụp lại trước mỗi cú bấm rep mới trả AIM về đúng chỗ được.
+const UNDO_MAX = 40;
+
+function pushUndo(k, finished){
+  if(!Array.isArray(state.undo)) state.undo = [];
+  state.undo.push({k: k, date: todayMMDD(), finished: !!finished, prevAim: state.aimSets[k]});
+  if(state.undo.length > UNDO_MAX) state.undo.splice(0, state.undo.length - UNDO_MAX);
+}
+
+// Ảnh chụp mới nhất của ĐÚNG bài này trong HÔM NAY (và gỡ nó khỏi stack).
+function popUndoFor(k){
+  if(!Array.isArray(state.undo)) return null;
+  const today = todayMMDD();
+  for(let i=state.undo.length-1;i>=0;i--){
+    if(state.undo[i].k===k && state.undo[i].date===today) return state.undo.splice(i,1)[0];
+  }
+  return null;
+}
+
+// Còn gì để xoá không? Ưu tiên ngăn tạm (progress), rồi mới tới bản ghi CỦA HÔM NAY.
+// Ngày cũ khoá cứng — không bao giờ đụng tới.
+function deletableSet(day,name){
   const k = key(day,name);
   const prog = state.progress[k]||[];
-  if(prog.length>0){ prog.pop(); state.progress[k]=prog; save(); renderWorkout(); }
+  if(prog.length > 0){
+    return {setIndex: prog.length-1, val: prog[prog.length-1], fromHistory:false};
+  }
+  const h = state.history[k]||[];
+  const last = h[h.length-1];
+  if(last && last.date === todayMMDD() && last.reps && last.reps.length > 0){
+    return {setIndex: last.reps.length-1, val: last.reps[last.reps.length-1], fromHistory:true};
+  }
+  return null;
+}
+
+function deleteRep(day,name){
+  const k = key(day,name);
+  const target = deletableSet(day,name);
+  if(!target) return;
+  const snap = popUndoFor(k);
+
+  if(target.fromHistory){
+    // Mở lại bài đã đóng sổ: gỡ entry hôm nay ra, trả các set còn lại về ngăn tạm.
+    const h = state.history[k]||[];
+    const entry = h.pop();
+    state.history[k] = h;
+    state.progress[k] = entry.reps.slice(0, -1);
+  }else{
+    const prog = state.progress[k]||[];
+    prog.pop();
+    state.progress[k] = prog;
+  }
+
+  // AIM đỏ: trả về đúng chỗ trước cú bấm đó (nếu còn ảnh chụp).
+  if(snap){
+    if(snap.prevAim === undefined) delete state.aimSets[k];
+    else state.aimSets[k] = snap.prevAim;
+  }
+
+  stopRestTimer();
+  save();
+  renderWorkout();
 }
 
 function progHint(day,name){
