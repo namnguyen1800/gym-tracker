@@ -295,6 +295,15 @@
     box-shadow: 7px 7px 16px var(--shadow-dark), -7px -7px 16px var(--shadow-light);
   }
   .rest-skip:active{ box-shadow: inset 6px 6px 13px var(--shadow-dark), inset -6px -6px 13px var(--shadow-light); }
+  .rest-aim-label{ color:var(--muted); font-size:12px; font-weight:700; text-align:center; margin-bottom:8px; letter-spacing:1.5px; text-transform:uppercase; }
+  .rest-aim-row{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+  .raim-btn{
+    width:44px; height:44px; border:none; border-radius:12px; cursor:pointer;
+    background:var(--surface); color:var(--text); font-size:16px; font-weight:800;
+    box-shadow: 5px 5px 12px var(--shadow-dark), -5px -5px 12px var(--shadow-light);
+  }
+  .raim-btn:active{ box-shadow: inset 4px 4px 10px var(--shadow-dark), inset -4px -4px 10px var(--shadow-light); transform:scale(.96); }
+  .raim-btn.on{ background:rgba(252,165,165,0.16); color:#fca5a5; box-shadow: inset 0 0 0 1.5px #fca5a5, 5px 5px 12px var(--shadow-dark), -5px -5px 12px var(--shadow-light); }
 /* ===== fireworks (new record) ===== */
 #fw{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:block;}
 .fw-banner{position:fixed;top:50%;transform:translateY(-50%);left:0;right:0;text-align:center;pointer-events:none;z-index:10000;display:none;}
@@ -346,6 +355,7 @@
   </div>
   <div class="rest-bottom">
     <div class="rest-info" id="restInfo"></div>
+    <div class="rest-aim" id="restAim"></div>
     <button class="rest-skip" onclick="skipRest()">Skip ›</button>
   </div>
 </div>
@@ -434,6 +444,7 @@ function defaultState(){
     progress: {},
     customReps: {},
     aimSets: {},
+    plankTarget: {},
     activeDay: DAY_ORDER[0],
     activeEx: {monday:0, tuesday:0, wednesday:0, thursday:0},
     undo: []
@@ -449,6 +460,7 @@ try{
   if(!state.progress) state.progress = {};
   if(!state.customReps) state.customReps = {};
   if(!state.aimSets) state.aimSets = {};
+  if(!state.plankTarget) state.plankTarget = {};
   if(!state.activeDay) state.activeDay = DAY_ORDER[0];
   if(!state.activeEx) state.activeEx = {monday:0, tuesday:0, wednesday:0, thursday:0};
   if(!Array.isArray(state.undo)) state.undo = [];
@@ -622,6 +634,10 @@ function renderWorkout(){
   let st = {highest:null, last:null};
   if(ex.type==='reps'){
     st = setStats(day, ex.name, prog.length, weight);
+  }else if(ex.type==='time'){
+    // Plank = bodyweight, không có tạ thật — bỏ lọc theo weight để không bị vỡ bởi
+    // các lần trước lỡ bấm nút −/+ (cũ) làm weight của Plank trôi khỏi 0.
+    st = setStats(day, ex.name, prog.length, undefined);
   }
 
   let card = '<div class="ex" id="exCard">';
@@ -634,15 +650,23 @@ function renderWorkout(){
     const hd = st.highestDate ? ' ('+st.highestDate.replace(/^\d{4}\//,'')+')' : '';
     stickyStat = 'highest <b>'+(st.highest!==null?st.highest:'·')+'</b>'+hd+' · last <b>'+(st.last!==null?st.last:'·')+'</b>';
   }else{
-    stickyStat = ex.sets+' sets · ⏱ time';
+    const hd = st.highestDate ? ' ('+st.highestDate.replace(/^\d{4}\//,'')+')' : '';
+    stickyStat = 'highest <b>'+(st.highest!==null?st.highest+'s':'·')+'</b>'+hd+' · last <b>'+(st.last!==null?st.last+'s':'·')+'</b>';
   }
   card += '<div class="ex-sticky"><div class="es-name">'+ex.name+'</div><div class="es-stat">'+stickyStat+'</div></div>';
 
-  // weight stepper
+  // weight stepper (Plank: đổi thành stepper số giây mục tiêu, bước 1 giây)
   let wr = '<div class="weight-row">';
-  wr += '<button class="wbtn" onclick="changeWeight(\''+day+'\',\''+ex.name+'\',-5)">−</button>';
-  wr += '<div><div class="wval">'+(ex.type==='time'?'⏱':(weight>0?weight+' <span class="wunit">lbs</span>':'<span class="wunit">body</span>'))+'</div></div>';
-  wr += '<button class="wbtn" onclick="changeWeight(\''+day+'\',\''+ex.name+'\',+5)">+</button>';
+  if(ex.type==='time'){
+    const pt = getPlankTarget(day, ex.name);
+    wr += '<button class="wbtn" onclick="plankTargetStep(\''+day+'\',\''+ex.name+'\',-1)">−</button>';
+    wr += '<div><div class="wval">'+pt+' <span class="wunit">s</span></div></div>';
+    wr += '<button class="wbtn" onclick="plankTargetStep(\''+day+'\',\''+ex.name+'\',1)">+</button>';
+  }else{
+    wr += '<button class="wbtn" onclick="changeWeight(\''+day+'\',\''+ex.name+'\',-5)">−</button>';
+    wr += '<div><div class="wval">'+(weight>0?weight+' <span class="wunit">lbs</span>':'<span class="wunit">body</span>')+'</div></div>';
+    wr += '<button class="wbtn" onclick="changeWeight(\''+day+'\',\''+ex.name+'\',+5)">+</button>';
+  }
   wr += '</div>';
 
   // set dots
@@ -674,26 +698,23 @@ function renderWorkout(){
     disp = '<div class="big-display"><div class="set-label">Set '+(prog.length+1)+'</div></div>';
   }
 
-  // rep buttons
-  let btns = '<div class="rep-grid">';
-  if(ex.type==='time'){
-    const opts = ['30s','45s','60s'];
-    for(const o of opts){
-      btns += '<button class="rep-btn" onclick="logRep(\''+day+'\',\''+ex.name+'\',\''+o+'\')">'+o+'</button>';
-    }
-  }else{
+  // rep buttons (Plank: không còn preset, chỉ dùng ô custom bên dưới)
+  let btns = '';
+  if(ex.type!=='time'){
+    btns = '<div class="rep-grid">';
     for(let r=4;r<=12;r++){
       btns += '<button class="rep-btn" onclick="logRep(\''+day+'\',\''+ex.name+'\','+r+')">'+r+'</button>';
     }
+    btns += '</div>';
   }
-  btns += '</div>';
 
   // custom input + delete
   const cid = 'ci_'+k.replace(/[^a-z0-9]/gi,'');
   let cx;
   if(ex.type==='time'){
+    const pt = getPlankTarget(day, ex.name);
     cx = '<div class="custom-row">'
-       + '<input class="custom-input" id="'+cid+'" placeholder="Custom (e.g. 75s)" inputmode="numeric">'
+       + '<input class="custom-input" id="'+cid+'" placeholder="Custom (e.g. 75s)" inputmode="numeric" value="'+pt+'s">'
        + '<button class="ok-btn" onclick="logCustom(\''+day+'\',\''+ex.name+'\')">OK</button>'
        + '</div>';
   }else{
@@ -802,17 +823,25 @@ function commitRep(day,name,ex,k,rep){
     delete state.progress[k];
     finished = true;
   }
-  save();
-  if(finished){
-    const total = PLAN[day].exercises.length;
-    let i = state.activeEx[day]||0;
-    if(i < total-1) state.activeEx[day] = i+1;
-  }
-  renderWorkout();
+  // Đổi activeEx TRƯỚC save() để save() ghi luôn 1 lượt — trước đây đổi SAU save()
+  // nên bước này chỉ sống trên màn hình, tắt app là mất, mở lại app là về bài cũ.
   const allDone = isAllDone();
+  if(finished){
+    if(allDone){
+      state.activeEx[day] = 0;
+    }else{
+      const total = PLAN[day].exercises.length;
+      let i = state.activeEx[day]||0;
+      if(i < total-1) state.activeEx[day] = i+1;
+    }
+  }
+  save();
+  renderWorkout();
   if(!allDone){
     if(finished) window.scrollTo({top:0, behavior:'smooth'});
-    startRestTimer(finished ? 150 : (ex.rest || 60));
+    startRestTimer(finished ? 150 : (ex.rest || 60), day, name);
+  }else{
+    stopRestTimer();
   }
 }
 
@@ -852,6 +881,33 @@ function customRepStep(day,name,delta){
   if(!state.customReps) state.customReps = {};
   state.customReps[k] = v;
   save();
+}
+
+// ---------- Plank target (số giây mục tiêu, dùng chung cho mọi set) ----------
+// Chỉ khởi tạo 1 lần từ kỷ lục hiện có (hoặc 30 nếu chưa có) rồi lưu ngay —
+// từ đó về sau đứng yên, không tự chạy theo kỷ lục mới lập được nữa.
+function getPlankTarget(day, name){
+  const k = key(day, name);
+  if(!state.plankTarget) state.plankTarget = {};
+  if(state.plankTarget[k] === undefined){
+    const ex = PLAN[day].exercises.find(e=>e.name===name);
+    let best = null;
+    for(let s=0; s<ex.sets; s++){
+      const h = setStats(day, name, s, undefined).highest;
+      if(h !== null && (best === null || h > best)) best = h;
+    }
+    state.plankTarget[k] = best !== null ? best : 30;
+    save();
+  }
+  return state.plankTarget[k];
+}
+
+function plankTargetStep(day, name, delta){
+  const k = key(day, name);
+  const v = Math.max(1, getPlankTarget(day, name) + delta);
+  state.plankTarget[k] = v;
+  save();
+  renderWorkout();
 }
 
 // ---------- Undo: xoá lùi set đã ghi (kể cả khi bài đã "đóng sổ") ----------
@@ -1151,6 +1207,7 @@ function startPlankTimer(day, name, rep){
   document.getElementById('restTag').textContent = 'Planking';
   const infoEl = document.getElementById('restInfo');
   infoEl.innerHTML = '<div class="rest-info-name">'+name+'</div><div class="rest-info-sub">Hold plank · '+rep+'</div>';
+  renderRestAim(null, null); // đang giữ plank, không phải lúc sửa AIM — dọn nút cũ còn sót
   document.getElementById('restOverlay').classList.add('show');
   updatePlankNum();
   plankTimer = setInterval(()=>{
@@ -1240,12 +1297,13 @@ function renderRestInfo(info){
     hl;
 }
 
-function startRestTimer(seconds){
+function startRestTimer(seconds, aimDay, aimName){
   stopRestTimer();
   ensureAudio();
   document.getElementById('restTag').textContent = 'Rest';
   restRemaining = seconds || 60;
   renderRestInfo(nextSetInfo(state.activeDay));
+  renderRestAim(aimDay, aimName);
   document.getElementById('restOverlay').classList.add('show');
   updateRestNum();
   restTimer = setInterval(()=>{
@@ -1263,6 +1321,36 @@ function startRestTimer(seconds){
 
 function updateRestNum(){
   document.getElementById('restNum').textContent = restRemaining;
+}
+
+// ---------- Sửa AIM ngay trong màn nghỉ ----------
+// Bài được sửa LUÔN là bài commitRep vừa xử lý (aimDay/aimName truyền vào từ
+// startRestTimer) — không suy qua nextSetInfo() vì đó có thể là bài SẮP tới, khác bài.
+let restAimTarget = null;
+
+function renderRestAim(aimDay, aimName){
+  const el = document.getElementById('restAim');
+  if(!el) return;
+  const ex = (aimDay && aimName) ? PLAN[aimDay].exercises.find(e=>e.name===aimName) : null;
+  if(!ex || ex.type !== 'reps'){
+    el.innerHTML = '';
+    restAimTarget = null;
+    return;
+  }
+  restAimTarget = {day: aimDay, name: aimName};
+  const cur = aimSet(aimDay, aimName);
+  let html = '<div class="rest-aim-label">Aim</div><div class="rest-aim-row">';
+  for(let s=0; s<ex.sets; s++){
+    html += '<button class="raim-btn'+(s===cur?' on':'')+'" onclick="pickRestAim('+s+')">'+(s+1)+'</button>';
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function pickRestAim(s){
+  if(!restAimTarget) return;
+  setAim(restAimTarget.day, restAimTarget.name, s);
+  renderRestAim(restAimTarget.day, restAimTarget.name);
 }
 
 function stopRestTimer(){
