@@ -304,6 +304,13 @@
   }
   .raim-btn:active{ box-shadow: inset 4px 4px 10px var(--shadow-dark), inset -4px -4px 10px var(--shadow-light); transform:scale(.96); }
   .raim-btn.on{ background:rgba(252,165,165,0.16); color:#fca5a5; box-shadow: inset 0 0 0 1.5px #fca5a5, 5px 5px 12px var(--shadow-dark), -5px -5px 12px var(--shadow-light); }
+  .raim-btn.auto{ width:auto; padding:0 14px; font-size:13px; letter-spacing:1px; text-transform:uppercase; }
+  .raim-btn.auto.on{ background:rgba(52,211,153,0.14); color:#34d399; box-shadow: inset 0 0 0 1.5px #34d399, 5px 5px 12px var(--shadow-dark), -5px -5px 12px var(--shadow-light); }
+  .rest-aim-list{ display:flex; flex-direction:column; gap:4px; margin:10px auto 0; max-width:220px; }
+  .rest-aim-item{ display:flex; justify-content:space-between; font-size:14px; font-weight:700; color:var(--muted); padding:4px 10px; border-radius:8px; }
+  .rest-aim-item b{ color:var(--text); font-weight:900; }
+  .rest-aim-item.on{ background:rgba(252,165,165,0.12); color:#fca5a5; }
+  .rest-aim-item.on b{ color:#fca5a5; }
 /* ===== fireworks (new record) ===== */
 #fw{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:block;}
 .fw-banner{position:fixed;top:50%;transform:translateY(-50%);left:0;right:0;text-align:center;pointer-events:none;z-index:10000;display:none;}
@@ -487,31 +494,79 @@ function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
 
 function key(day,name){ return day+'|'+name; }
 
-function aimSet(day,name){
-  const k = key(day,name);
-  const ex = PLAN[day].exercises.find(e=>e.name===name);
-  if(ex && ex.type === 'reps'){
-    const backfillIdx = backfillAimSet(day, name, ex);
-    if(backfillIdx !== null) return backfillIdx;
-  }
-  return state.aimSets[k]||0;
-}
-
-// "Đổ dồn": nếu 1 set sau đang có kỷ lục CAO HƠN set ngay trước nó (ở mức tạ hiện tại),
-// set trước đó coi là đang bị bỏ lại → aim tự nhảy về set SỚM NHẤT bị vượt mặt.
-// Không có set nào bị vượt → trả null để dùng aim đã lưu (luật PR-advance cũ).
-function backfillAimSet(day,name,ex){
-  const weight = state.weights[key(day,name)];
-  const records = [];
-  for(let s=0;s<ex.sets;s++){
-    records.push(setStats(day,name,s,weight).highest);
-  }
-  for(let s=0;s<records.length-1;s++){
-    if(records[s]!=null && records[s+1]!=null && records[s+1] > records[s]){
-      return s;
+// Chụp hình chỗ đỏ đang hiện ở mọi bài đúng 1 lần khi lên bản aim-auto (2026-09-13).
+// Bản cũ: aimSets = số máy ghi sau mỗi PR, và luật "đổ dồn" thường đè lên số đó
+// nên số lưu ≠ set đang đỏ. Bản mới: aimSets chỉ còn nghĩa "Nam tự chọn tay", vắng
+// key = máy tự dò. Không chụp thì chấm đỏ nhảy ở mọi bài bị đè — Nam chọn giữ chỗ đỏ.
+(function(){
+  if(state.aimMigrated) return;
+  const legacyAim = (day, ex) => {
+    const k = key(day, ex.name);
+    const weight = state.weights[k];
+    const rec = [];
+    for(let s=0;s<ex.sets;s++) rec.push(setStats(day, ex.name, s, weight).highest);
+    for(let s=0;s<rec.length-1;s++){
+      if(rec[s]!=null && rec[s+1]!=null && rec[s+1] > rec[s]) return s;
+    }
+    return state.aimSets[k]||0;
+  };
+  for(const day of DAY_ORDER){
+    for(const ex of PLAN[day].exercises){
+      if(ex.type !== 'reps') continue;
+      state.aimSets[key(day, ex.name)] = legacyAim(day, ex);
     }
   }
-  return null;
+  state.aimMigrated = true;
+  save();
+})();
+
+// aimSets[k] có key = Nam đã chọn tay, đứng yên. Vắng key = máy tự dò (autoAimSet).
+function aimSet(day,name){
+  const k = key(day,name);
+  if(state.aimSets[k] !== undefined) return state.aimSets[k];
+  const ex = PLAN[day].exercises.find(e=>e.name===name);
+  if(ex && ex.type === 'reps') return autoAimSet(day, name, ex);
+  return 0;
+}
+
+// Dò từ set cuối ngược lên: set nào thấp hơn set ngay trước nó (cả hai đều có số) là AIM.
+// Không có cặp nào như vậy → set có số thấp nhất (trùng thì set đầu). Dùng số đang hiện
+// trong màn nghỉ (effectiveStats), nên rep vừa nhập hôm nay làm AIM đổi ngay, không đợi lưu.
+function autoAimSet(day,name,ex){
+  const weight = state.weights[key(day,name)];
+  const rec = [];
+  for(let s=0;s<ex.sets;s++) rec.push(effectiveStats(day,name,s,weight).highest);
+  for(let i=rec.length-1;i>=1;i--){
+    if(rec[i]!==null && rec[i-1]!==null && rec[i] < rec[i-1]) return i;
+  }
+  let m = -1;
+  for(let i=0;i<rec.length;i++){
+    if(rec[i]===null) continue;
+    if(m<0 || rec[i] < rec[m]) m = i;
+  }
+  return m<0 ? 0 : m;
+}
+
+function clearAim(day,name){
+  const k = key(day,name);
+  if(state.aimSets[k] === undefined) return;
+  delete state.aimSets[k];
+  save(); renderWorkout();
+}
+
+// setStats + rep đang tập dở hôm nay (state.progress) đè lên: hôm nay thành "last",
+// và thành "highest" nếu cao hơn kỷ lục đã lưu. Chỉ màn nghỉ và autoAimSet dùng hàm này;
+// màn chính giữ setStats gốc vì dòng highest ở đó kèm ngày = số đã lưu.
+function effectiveStats(day,name,setIndex,weight){
+  const st = setStats(day,name,setIndex,weight);
+  const prog = state.progress[key(day,name)]||[];
+  const v = parseInt(prog[setIndex]);
+  if(isNaN(v)) return st;
+  return {
+    highest: (st.highest===null || v > st.highest) ? v : st.highest,
+    last: v,
+    highestDate: st.highestDate
+  };
 }
 
 function todayMMDD(){
@@ -773,7 +828,7 @@ function changeWeight(day,name,delta){
   let w = state.weights[k]||0;
   w = Math.max(0, Math.round((w+delta)*10)/10);
   state.weights[k] = w;
-  if(delta > 0) state.aimSets[k] = 0;
+  if(delta > 0) delete state.aimSets[k];
   save(); renderWorkout();
 }
 
@@ -795,7 +850,7 @@ function commitRep(day,name,ex,k,rep){
   if(prog.length >= ex.sets) return;
   pushUndo(k, prog.length + 1 >= ex.sets);
   prog.push(rep);
-  // --- new record fireworks + aim-set advance ---
+  // --- new record fireworks (AIM không còn nhảy ở đây: autoAimSet tự dò lại từ số) ---
   const _setIdx = prog.length - 1;
   const _hist = state.history[k] || [];
   const _w = state.weights[k];
@@ -808,12 +863,7 @@ function commitRep(day,name,ex,k,rep){
   }
   const _cur = parseInt(rep);
   const isPR = !isNaN(_cur) && _cur > 0 && (_best < 0 || _cur > _best);
-  if(isPR){
-    launchFireworks(_cur, ex.type);
-    if(ex.type === 'reps' && _setIdx === aimSet(day, name)){
-      state.aimSets[k] = (_setIdx + 1) % ex.sets;
-    }
-  }
+  if(isPR) launchFireworks(_cur, ex.type);
   state.progress[k] = prog;
   let finished = false;
   if(prog.length >= ex.sets){
@@ -914,8 +964,9 @@ function plankTargetStep(day, name, delta){
 // Set cuối cùng làm bài finish → cả loạt set rời state.progress vào state.history,
 // nên deleteRep cũ (chỉ đụng progress) thành no-op im lặng.
 // highest KHÔNG được lưu — setStats() quét lại history mỗi lần render — nên chỉ cần
-// gỡ entry sai khỏi history là highest cũ tự quay về. Riêng aimSets thì lưu thật,
-// nên phải chụp lại trước mỗi cú bấm rep mới trả AIM về đúng chỗ được.
+// gỡ entry sai khỏi history là highest cũ tự quay về. AIM auto cũng vậy (autoAimSet
+// dò lại từ số). prevAim vẫn chụp để bảo toàn pin tay nếu sau này có chỗ nào ghi aimSets
+// trong lúc tập — hiện commitRep không ghi nữa (2026-09-13).
 const UNDO_MAX = 40;
 
 function pushUndo(k, finished){
@@ -1338,10 +1389,21 @@ function renderRestAim(aimDay, aimName){
     return;
   }
   restAimTarget = {day: aimDay, name: aimName};
+  const k = key(aimDay, aimName);
   const cur = aimSet(aimDay, aimName);
-  let html = '<div class="rest-aim-label">Aim</div><div class="rest-aim-row">';
+  const pinned = state.aimSets[k] !== undefined;
+  const weight = state.weights[k];
+  let html = '<div class="rest-aim-label">Aim: '+ex.name+'</div><div class="rest-aim-row">';
   for(let s=0; s<ex.sets; s++){
     html += '<button class="raim-btn'+(s===cur?' on':'')+'" onclick="pickRestAim('+s+')">'+(s+1)+'</button>';
+  }
+  html += '<button class="raim-btn auto'+(pinned?'':' on')+'" onclick="pickRestAuto()">auto</button>';
+  html += '</div><div class="rest-aim-list">';
+  for(let s=0; s<ex.sets; s++){
+    const st = effectiveStats(aimDay, aimName, s, weight);
+    const hi = st.highest!==null ? st.highest : '·';
+    const la = st.last!==null ? st.last : '·';
+    html += '<div class="rest-aim-item'+(s===cur?' on':'')+'"><span>Set '+(s+1)+'</span><b>'+hi+' - '+la+'</b></div>';
   }
   html += '</div>';
   el.innerHTML = html;
@@ -1350,6 +1412,12 @@ function renderRestAim(aimDay, aimName){
 function pickRestAim(s){
   if(!restAimTarget) return;
   setAim(restAimTarget.day, restAimTarget.name, s);
+  renderRestAim(restAimTarget.day, restAimTarget.name);
+}
+
+function pickRestAuto(){
+  if(!restAimTarget) return;
+  clearAim(restAimTarget.day, restAimTarget.name);
   renderRestAim(restAimTarget.day, restAimTarget.name);
 }
 
