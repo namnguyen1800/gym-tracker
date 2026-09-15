@@ -322,11 +322,15 @@
   .rest-aim-item b{ color:var(--text); font-weight:900; }
   .rest-aim-item.on{ background:rgba(252,165,165,0.16); color:#fca5a5; }
   .rest-aim-item.on b{ color:#fca5a5; }
-  /* Set AIM = kiếm cắm góc ô số + "điện": viền phập phồng + tia sét vẽ trên canvas (startSparks) */
-  .aim-pill{ position:relative; display:inline-block; padding:2px 12px; border-radius:10px; background:rgba(252,165,165,0.16); color:#fca5a5; }
-  .rest-aim-item.on, .aim-pill{ box-shadow: 0 0 0 1.5px #fca5a5, 0 0 12px rgba(252,165,165,0.45); animation:aimBreathe 1.5s ease-in-out infinite; }
-  @keyframes aimBreathe{ 50%{ box-shadow: 0 0 0 1.5px #ffd6d6, 0 0 18px rgba(252,165,165,0.8); } }
-  .sw{ position:absolute; top:-16px; right:-12px; width:32px; height:32px; transform:rotate(35deg); pointer-events:none; filter:drop-shadow(0 0 3px rgba(252,165,165,0.9)); }
+  /* Set SẮP TẬP của bài này = xanh lá (màu AUTO cũ). Đứng sau .on để thắng khi trùng set AIM. */
+  .raim-btn.cur{ background:rgba(52,211,153,0.14); color:#34d399; box-shadow: inset 0 0 0 1.5px #34d399, 5px 5px 12px var(--shadow-dark), -5px -5px 12px var(--shadow-light); }
+  .rest-aim-item.cur{ background:rgba(52,211,153,0.14); color:#34d399; }
+  .rest-aim-item.cur b{ color:#34d399; }
+  /* Set sắp tập TRÙNG set AIM (.zap) = nền xanh + kiếm cắm góc ô + "điện": viền phập phồng + tia sét canvas (startSparks) */
+  .aim-pill{ position:relative; display:inline-block; padding:2px 12px; border-radius:10px; background:rgba(52,211,153,0.14); color:#34d399; }
+  .rest-aim-item.zap, .aim-pill{ box-shadow: 0 0 0 1.5px #34d399, 0 0 12px rgba(52,211,153,0.45); animation:aimBreathe 1.5s ease-in-out infinite; }
+  @keyframes aimBreathe{ 50%{ box-shadow: 0 0 0 1.5px #b9f3dc, 0 0 18px rgba(52,211,153,0.8); } }
+  .sw{ position:absolute; top:-16px; right:-12px; width:32px; height:32px; transform:rotate(35deg); pointer-events:none; filter:drop-shadow(0 0 3px rgba(52,211,153,0.9)); }
   .aim-pill .sw{ top:-17px; right:-15px; }
   .zapc{ position:absolute; left:-10px; top:-10px; pointer-events:none; z-index:2; }
 /* ===== fireworks (new record) ===== */
@@ -1357,9 +1361,9 @@ function nextSetInfo(day){
 // Kiếm cắm vào góc ô AIM + lớp canvas để vẽ sét (startSparks). Kiếm nằm NGOÀI ô một phần
 // nên ô chứa không được overflow:hidden.
 const SWORD_SVG = '<svg class="sw" viewBox="0 0 32 32" aria-hidden="true">'
-  + '<circle cx="16" cy="3.8" r="2.4" fill="#fca5a5"/>'
-  + '<rect x="14.6" y="5.6" width="2.8" height="6" rx="1" fill="#f87171"/>'
-  + '<rect x="9" y="11.4" width="14" height="3" rx="1.5" fill="#fca5a5"/>'
+  + '<circle cx="16" cy="3.8" r="2.4" fill="#34d399"/>'
+  + '<rect x="14.6" y="5.6" width="2.8" height="6" rx="1" fill="#10b981"/>'
+  + '<rect x="9" y="11.4" width="14" height="3" rx="1.5" fill="#34d399"/>'
   + '<path d="M13 14.4H19L16.9 27.5 16 31 15.1 27.5Z" fill="#eef1f7"/>'
   + '<path d="M16 15v12" stroke="#b8c0cf" stroke-width="1"/>'
   + '</svg>';
@@ -1433,9 +1437,13 @@ function renderRestAim(aimDay, aimName){
   const cur = aimSet(aimDay, aimName);
   const pinned = state.aimSets[k] !== undefined;
   const weight = state.weights[k];
+  // Set sắp tập của CHÍNH bài này (xanh lá). Bài đã xong hết set hôm nay → không có (-1).
+  const prog = state.progress[k] || [];
+  const curSet = (isExDoneToday(aimDay, aimName) || prog.length >= ex.sets) ? -1 : prog.length;
+  const zap = cur === curSet; // set sắp tập trùng set AIM → kiếm + sét, chỉ lúc này
   let html = '<div class="rest-aim-label">Aim: '+ex.name+'</div><div class="rest-aim-row">';
   for(let s=0; s<ex.sets; s++){
-    html += '<button class="raim-btn'+(s===cur?' on':'')+'" onclick="pickRestAim('+s+')">'+(s+1)+(s===cur?SWORD_SVG:'')+'</button>';
+    html += '<button class="raim-btn'+(s===cur?' on':'')+(s===curSet?' cur':'')+'" onclick="pickRestAim('+s+')">'+(s+1)+(zap && s===cur ? SWORD_SVG : '')+'</button>';
   }
   html += '<button class="raim-btn auto'+(pinned?'':' on')+'" onclick="pickRestAuto()">auto</button>';
   html += '</div><div class="rest-aim-list">';
@@ -1443,7 +1451,8 @@ function renderRestAim(aimDay, aimName){
     const st = effectiveStats(aimDay, aimName, s, weight);
     const hi = st.highest!==null ? st.highest : '·';
     const la = st.last!==null ? st.last : '·';
-    html += '<div class="rest-aim-item'+(s===cur?' on':'')+'"><span>Set '+(s+1)+'</span><b>'+hi+' - '+la+'</b>'+(s===cur?ZAP_CANVAS:'')+'</div>';
+    const on = zap && s===cur;
+    html += '<div class="rest-aim-item'+(s===cur?' on':'')+(s===curSet?' cur':'')+(on?' zap':'')+'"><span>Set '+(s+1)+'</span><b>'+hi+' - '+la+'</b>'+(on?ZAP_CANVAS:'')+'</div>';
   }
   html += '</div>';
   el.innerHTML = html;
@@ -1520,8 +1529,8 @@ function sparkTick(){
       else { x = d.pad; y = d.pad + Math.random()*ih; ang = Math.random()<.5 ? Math.PI/2 : -Math.PI/2; }
       const pts = sparkBolt(x, y, ang, 4 + Math.floor(Math.random()*4));
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      ctx.shadowColor = 'rgba(252,165,165,.95)'; ctx.shadowBlur = 8;
-      ctx.strokeStyle = 'rgba(252,165,165,.9)'; ctx.lineWidth = 2.2; sparkStroke(ctx, pts);
+      ctx.shadowColor = 'rgba(52,211,153,.95)'; ctx.shadowBlur = 8;
+      ctx.strokeStyle = 'rgba(52,211,153,.9)'; ctx.lineWidth = 2.2; sparkStroke(ctx, pts);
       ctx.shadowBlur = 0; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; sparkStroke(ctx, pts);
     }
   }
