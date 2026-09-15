@@ -263,54 +263,72 @@
   .data-row{display:flex; gap:12px; margin-top:22px;}
 
   /* ---------- Rest timer overlay ---------- */
+  /* Màn nghỉ dồn xuống ĐÁY màn hình để chừa 1/3 trên cho khung YouTube nổi (PiP).
+     Plank thêm class .plank → quay về bố cục cũ giữa màn, số to (lúc plank không xem YouTube). */
   #restOverlay{
     position:fixed; inset:0; z-index:100;
     display:flex; flex-direction:column; align-items:center;
-    justify-content:center;
-    gap:28px;
-    padding:15vh 20px 15vh;
+    justify-content:flex-end;
+    gap:12px;
+    padding:16px 20px calc(24px + env(safe-area-inset-bottom));
     background:rgba(10,12,17,0.96);
     opacity:0; pointer-events:none; transition:opacity .25s;
   }
   #restOverlay.show{ opacity:1; pointer-events:auto; }
+  #restOverlay.plank{ justify-content:center; gap:28px; padding:15vh 20px 15vh; }
   .rest-top{ text-align:center; }
-  .rest-tag{ font-size:15px; font-weight:700; color:var(--muted); letter-spacing:3px; text-transform:uppercase; }
+  .rest-tag{ font-size:11px; font-weight:700; color:var(--muted); letter-spacing:3px; text-transform:uppercase; }
+  #restOverlay.plank .rest-tag{ font-size:15px; }
   .rest-num{
-    font-size:130px; font-weight:900; line-height:1; margin:8px 0;
+    font-size:80px; font-weight:900; line-height:1; margin:2px 0; font-variant-numeric:tabular-nums;
     background:linear-gradient(180deg,#ffffff 0%, #aeb7c8 100%);
     -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
   }
-  .rest-bottom{ width:100%; max-width:380px; display:flex; flex-direction:column; gap:16px; }
+  #restOverlay.plank .rest-num{ font-size:130px; margin:8px 0; }
+  .rest-bottom{ width:100%; max-width:340px; display:flex; flex-direction:column; gap:12px; }
+  #restOverlay.plank .rest-bottom{ max-width:380px; gap:16px; }
   .rest-info{
-    text-align:center; background:var(--surface); border-radius:18px; padding:16px;
+    text-align:center; background:var(--surface); border-radius:16px; padding:12px 14px;
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 8px 8px 20px rgba(0,0,0,0.4);
   }
-  .rest-info-name{ font-size:19px; font-weight:800; }
-  .rest-info-sub{ color:var(--muted); font-size:14px; font-weight:700; margin-top:4px; }
-  .rest-info-hl{ font-size:14px; margin-top:8px; color:var(--muted); }
-  .rest-info-hl b{ color:var(--text); font-size:16px; }
+  /* Tên bài chỉ để xác nhận → nhỏ, xám. Số set / highest / last là thứ Nam liếc → đậm trắng, cùng cỡ. */
+  .rest-info-name{ font-size:13px; font-weight:700; color:var(--muted); }
+  #restOverlay.plank .rest-info-name{ font-size:19px; font-weight:800; color:var(--text); }
+  .rest-info-sub{ color:var(--muted); font-size:15px; font-weight:700; margin-top:6px; }
+  .rest-info-sub b{ color:var(--text); font-size:17px; font-weight:900; }
+  .rest-info-hl{ font-size:13px; font-weight:600; margin-top:5px; color:var(--muted); }
+  .rest-info-hl b{ color:var(--text); font-size:17px; font-weight:900; }
   .rest-skip{
-    padding:15px 34px; border:none; border-radius:16px;
-    background:var(--surface); color:var(--text); font-size:16px; font-weight:800; cursor:pointer;
+    padding:12px 34px; border:none; border-radius:14px;
+    background:var(--surface); color:var(--text); font-size:15px; font-weight:800; cursor:pointer;
     box-shadow: 7px 7px 16px var(--shadow-dark), -7px -7px 16px var(--shadow-light);
   }
   .rest-skip:active{ box-shadow: inset 6px 6px 13px var(--shadow-dark), inset -6px -6px 13px var(--shadow-light); }
-  .rest-aim-label{ color:var(--muted); font-size:12px; font-weight:700; text-align:center; margin-bottom:8px; letter-spacing:1.5px; text-transform:uppercase; }
+  .rest-aim-label{ color:var(--muted); font-size:11px; font-weight:700; text-align:center; margin-bottom:6px; letter-spacing:1.5px; text-transform:uppercase; }
   .rest-aim-row{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
   .raim-btn{
-    width:44px; height:44px; border:none; border-radius:12px; cursor:pointer;
-    background:var(--surface); color:var(--text); font-size:16px; font-weight:800;
+    position:relative; width:40px; height:40px; border:none; border-radius:11px; cursor:pointer;
+    background:var(--surface); color:var(--text); font-size:15px; font-weight:800;
     box-shadow: 5px 5px 12px var(--shadow-dark), -5px -5px 12px var(--shadow-light);
   }
   .raim-btn:active{ box-shadow: inset 4px 4px 10px var(--shadow-dark), inset -4px -4px 10px var(--shadow-light); transform:scale(.96); }
   .raim-btn.on{ background:rgba(252,165,165,0.16); color:#fca5a5; box-shadow: inset 0 0 0 1.5px #fca5a5, 5px 5px 12px var(--shadow-dark), -5px -5px 12px var(--shadow-light); }
-  .raim-btn.auto{ width:auto; padding:0 14px; font-size:13px; letter-spacing:1px; text-transform:uppercase; }
-  .raim-btn.auto.on{ background:rgba(52,211,153,0.14); color:#34d399; box-shadow: inset 0 0 0 1.5px #34d399, 5px 5px 12px var(--shadow-dark), -5px -5px 12px var(--shadow-light); }
-  .rest-aim-list{ display:flex; flex-direction:column; gap:4px; margin:10px auto 0; max-width:220px; }
-  .rest-aim-item{ display:flex; justify-content:space-between; font-size:14px; font-weight:700; color:var(--muted); padding:4px 10px; border-radius:8px; }
+  /* AUTO ít dùng → xám mờ cả 2 trạng thái; máy đang tự chọn = viền ĐỨT, Nam đã pin số = viền LIỀN */
+  .raim-btn.auto{ width:auto; padding:0 12px; font-size:12px; letter-spacing:1px; text-transform:uppercase;
+    background:transparent; box-shadow:none; color:var(--muted); opacity:.55; border:1.5px solid rgba(138,147,166,0.65); }
+  .raim-btn.auto.on{ border-style:dashed; }
+  .rest-aim-list{ display:flex; flex-direction:column; gap:4px; margin:8px auto 0; max-width:220px; }
+  .rest-aim-item{ position:relative; display:flex; justify-content:space-between; font-size:13px; font-weight:700; color:var(--muted); padding:3px 10px; border-radius:8px; }
   .rest-aim-item b{ color:var(--text); font-weight:900; }
-  .rest-aim-item.on{ background:rgba(252,165,165,0.12); color:#fca5a5; }
+  .rest-aim-item.on{ background:rgba(252,165,165,0.16); color:#fca5a5; }
   .rest-aim-item.on b{ color:#fca5a5; }
+  /* Set AIM = kiếm cắm góc ô số + "điện": viền phập phồng + tia sét vẽ trên canvas (startSparks) */
+  .aim-pill{ position:relative; display:inline-block; padding:2px 12px; border-radius:10px; background:rgba(252,165,165,0.16); color:#fca5a5; }
+  .rest-aim-item.on, .aim-pill{ box-shadow: 0 0 0 1.5px #fca5a5, 0 0 12px rgba(252,165,165,0.45); animation:aimBreathe 1.5s ease-in-out infinite; }
+  @keyframes aimBreathe{ 50%{ box-shadow: 0 0 0 1.5px #ffd6d6, 0 0 18px rgba(252,165,165,0.8); } }
+  .sw{ position:absolute; top:-16px; right:-12px; width:32px; height:32px; transform:rotate(35deg); pointer-events:none; filter:drop-shadow(0 0 3px rgba(252,165,165,0.9)); }
+  .aim-pill .sw{ top:-17px; right:-15px; }
+  .zapc{ position:absolute; left:-10px; top:-10px; pointer-events:none; z-index:2; }
 /* ===== fireworks (new record) ===== */
 #fw{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:block;}
 .fw-banner{position:fixed;top:50%;transform:translateY(-50%);left:0;right:0;text-align:center;pointer-events:none;z-index:10000;display:none;}
@@ -1259,7 +1277,9 @@ function startPlankTimer(day, name, rep){
   const infoEl = document.getElementById('restInfo');
   infoEl.innerHTML = '<div class="rest-info-name">'+name+'</div><div class="rest-info-sub">Hold plank · '+rep+'</div>';
   renderRestAim(null, null); // đang giữ plank, không phải lúc sửa AIM — dọn nút cũ còn sót
-  document.getElementById('restOverlay').classList.add('show');
+  const ov = document.getElementById('restOverlay');
+  ov.classList.add('plank'); // bố cục cũ giữa màn, số to — lúc plank Nam không xem YouTube
+  ov.classList.add('show');
   updatePlankNum();
   plankTimer = setInterval(()=>{
     plankRemaining--;
@@ -1328,11 +1348,22 @@ function nextSetInfo(day){
         const st = setStats(day, ex.name, prog.length, weight);
         highest = st.highest; last = st.last;
       }
-      return {name:ex.name, type:ex.type, weight, setIndex:prog.length, sets:ex.sets, highest, last};
+      return {day, name:ex.name, type:ex.type, weight, setIndex:prog.length, sets:ex.sets, highest, last};
     }
   }
   return null;
 }
+
+// Kiếm cắm vào góc ô AIM + lớp canvas để vẽ sét (startSparks). Kiếm nằm NGOÀI ô một phần
+// nên ô chứa không được overflow:hidden.
+const SWORD_SVG = '<svg class="sw" viewBox="0 0 32 32" aria-hidden="true">'
+  + '<circle cx="16" cy="3.8" r="2.4" fill="#fca5a5"/>'
+  + '<rect x="14.6" y="5.6" width="2.8" height="6" rx="1" fill="#f87171"/>'
+  + '<rect x="9" y="11.4" width="14" height="3" rx="1.5" fill="#fca5a5"/>'
+  + '<path d="M13 14.4H19L16.9 27.5 16 31 15.1 27.5Z" fill="#eef1f7"/>'
+  + '<path d="M16 15v12" stroke="#b8c0cf" stroke-width="1"/>'
+  + '</svg>';
+const ZAP_CANVAS = '<canvas class="zapc"></canvas>';
 
 function renderRestInfo(info){
   const el = document.getElementById('restInfo');
@@ -1342,9 +1373,15 @@ function renderRestInfo(info){
   if(info.type==='reps'){
     hl = '<div class="rest-info-hl">highest <b>'+(info.highest!==null?info.highest:'·')+'</b> · last <b>'+(info.last!==null?info.last:'·')+'</b></div>';
   }
+  // Set sắp tập trùng set AIM của CHÍNH bài đó → kiếm + điện ngay trên dòng Set
+  // (so với bài của set sắp tập, không phải bài đang hiện ở phần Aim bên dưới)
+  let sub = 'Set <b>'+(info.setIndex+1)+'</b> / '+info.sets+' · '+w;
+  if(info.type==='reps' && info.setIndex === aimSet(info.day, info.name)){
+    sub = '<span class="aim-pill">'+sub+ZAP_CANVAS+SWORD_SVG+'</span>';
+  }
   el.innerHTML =
     '<div class="rest-info-name">'+info.name+'</div>'+
-    '<div class="rest-info-sub">Set '+(info.setIndex+1)+' / '+info.sets+' · '+w+'</div>'+
+    '<div class="rest-info-sub">'+sub+'</div>'+
     hl;
 }
 
@@ -1355,7 +1392,10 @@ function startRestTimer(seconds, aimDay, aimName){
   restRemaining = seconds || 60;
   renderRestInfo(nextSetInfo(state.activeDay));
   renderRestAim(aimDay, aimName);
-  document.getElementById('restOverlay').classList.add('show');
+  const ov = document.getElementById('restOverlay');
+  ov.classList.remove('plank');
+  ov.classList.add('show');
+  startSparks();
   updateRestNum();
   restTimer = setInterval(()=>{
     restRemaining--;
@@ -1395,7 +1435,7 @@ function renderRestAim(aimDay, aimName){
   const weight = state.weights[k];
   let html = '<div class="rest-aim-label">Aim: '+ex.name+'</div><div class="rest-aim-row">';
   for(let s=0; s<ex.sets; s++){
-    html += '<button class="raim-btn'+(s===cur?' on':'')+'" onclick="pickRestAim('+s+')">'+(s+1)+'</button>';
+    html += '<button class="raim-btn'+(s===cur?' on':'')+'" onclick="pickRestAim('+s+')">'+(s+1)+(s===cur?SWORD_SVG:'')+'</button>';
   }
   html += '<button class="raim-btn auto'+(pinned?'':' on')+'" onclick="pickRestAuto()">auto</button>';
   html += '</div><div class="rest-aim-list">';
@@ -1403,7 +1443,7 @@ function renderRestAim(aimDay, aimName){
     const st = effectiveStats(aimDay, aimName, s, weight);
     const hi = st.highest!==null ? st.highest : '·';
     const la = st.last!==null ? st.last : '·';
-    html += '<div class="rest-aim-item'+(s===cur?' on':'')+'"><span>Set '+(s+1)+'</span><b>'+hi+' - '+la+'</b></div>';
+    html += '<div class="rest-aim-item'+(s===cur?' on':'')+'"><span>Set '+(s+1)+'</span><b>'+hi+' - '+la+'</b>'+(s===cur?ZAP_CANVAS:'')+'</div>';
   }
   html += '</div>';
   el.innerHTML = html;
@@ -1413,17 +1453,87 @@ function pickRestAim(s){
   if(!restAimTarget) return;
   setAim(restAimTarget.day, restAimTarget.name, s);
   renderRestAim(restAimTarget.day, restAimTarget.name);
+  renderRestInfo(nextSetInfo(state.activeDay)); // dòng Set ở khung trên đổi kiếm/điện theo
 }
 
 function pickRestAuto(){
   if(!restAimTarget) return;
   clearAim(restAimTarget.day, restAimTarget.name);
   renderRestAim(restAimTarget.day, restAimTarget.name);
+  renderRestInfo(nextSetInfo(state.activeDay));
 }
 
 function stopRestTimer(){
   if(restTimer){ clearInterval(restTimer); restTimer = null; }
+  stopSparks();
   document.getElementById('restOverlay').classList.remove('show');
+}
+
+// ---------- "Điện" cho set AIM: tia sét ngẫu nhiên vẽ lên canvas quanh viền ----------
+// Mỗi nhịp 90ms: xoá, rồi ~65% nhịp vẽ 1-2 tia sét từ 1 điểm ngẫu nhiên trên viền.
+// Canvas tìm lại mỗi nhịp (renderRestAim/renderRestInfo hay ghi đè innerHTML), vắng thì bỏ qua.
+let sparkTimer = null;
+
+function sizeSparkCanvas(c){
+  const r = c.parentElement.getBoundingClientRect();
+  const pad = 10, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.round(r.width) + pad*2, h = Math.round(r.height) + pad*2;
+  if(c._w !== w || c._h !== h){
+    c._w = w; c._h = h; c.width = w*dpr; c.height = h*dpr;
+    c.style.width = w+'px'; c.style.height = h+'px';
+    c.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
+  }
+  return {w, h, pad};
+}
+
+function sparkBolt(x, y, ang, segs){
+  const pts = [[x,y]];
+  for(let i=0;i<segs;i++){
+    ang += (Math.random()-.5)*2.2;
+    const L = 3 + Math.random()*5;
+    x += Math.cos(ang)*L; y += Math.sin(ang)*L;
+    pts.push([x,y]);
+  }
+  return pts;
+}
+
+function sparkStroke(ctx, pts){
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+  for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  ctx.stroke();
+}
+
+function sparkTick(){
+  const cs = document.querySelectorAll('#restOverlay .zapc');
+  for(const c of cs){
+    const d = sizeSparkCanvas(c), ctx = c.getContext('2d');
+    ctx.clearRect(0,0,d.w,d.h);
+    if(Math.random() < .35) continue;
+    const count = 1 + (Math.random() < .4 ? 1 : 0);
+    const iw = d.w - d.pad*2, ih = d.h - d.pad*2;
+    for(let k=0;k<count;k++){
+      const side = Math.floor(Math.random()*4);
+      let x, y, ang;
+      if(side===0){ x = d.pad + Math.random()*iw; y = d.pad;       ang = Math.random()<.5 ? 0 : Math.PI; }
+      else if(side===1){ x = d.w - d.pad; y = d.pad + Math.random()*ih; ang = Math.random()<.5 ? Math.PI/2 : -Math.PI/2; }
+      else if(side===2){ x = d.pad + Math.random()*iw; y = d.h - d.pad; ang = Math.random()<.5 ? 0 : Math.PI; }
+      else { x = d.pad; y = d.pad + Math.random()*ih; ang = Math.random()<.5 ? Math.PI/2 : -Math.PI/2; }
+      const pts = sparkBolt(x, y, ang, 4 + Math.floor(Math.random()*4));
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.shadowColor = 'rgba(252,165,165,.95)'; ctx.shadowBlur = 8;
+      ctx.strokeStyle = 'rgba(252,165,165,.9)'; ctx.lineWidth = 2.2; sparkStroke(ctx, pts);
+      ctx.shadowBlur = 0; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; sparkStroke(ctx, pts);
+    }
+  }
+}
+
+function startSparks(){
+  if(sparkTimer) return;
+  sparkTimer = setInterval(sparkTick, 90);
+}
+
+function stopSparks(){
+  if(sparkTimer){ clearInterval(sparkTimer); sparkTimer = null; }
 }
 
 function skipRest(){
