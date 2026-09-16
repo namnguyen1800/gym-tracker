@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#14161d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mic Test">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<title>Thử Micro</title>
+<style>
+  :root{
+    --bg1:#14161d; --surface:#1b1e27; --surface2:#232833;
+    --text:#eef1f7; --muted:#8a93a6;
+    --ok:#4ade80; --bad:#f87171; --wait:#fbbf24; --accent:#60a5fa;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0;}
+  body{
+    background:
+      radial-gradient(900px 600px at 50% -12%, #232833 0%, transparent 60%),
+      var(--bg1);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    min-height:100vh;
+    padding:18px 16px 40px;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1{font-size:20px; margin:4px 0 2px;}
+  .sub{color:var(--muted); font-size:13px; margin:0 0 16px;}
+  .card{
+    background:var(--surface); border-radius:16px; padding:14px 16px;
+    margin-bottom:14px; box-shadow:0 6px 18px rgba(0,0,0,0.45);
+  }
+  .card h2{font-size:14px; margin:0 0 10px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:0.06em;}
+  .row{display:flex; justify-content:space-between; align-items:center;
+    padding:7px 0; font-size:15px; border-bottom:1px solid rgba(255,255,255,0.05);}
+  .row:last-child{border-bottom:none;}
+  .row .k{color:var(--muted); font-size:14px;}
+  .row .v{font-weight:600; text-align:right; max-width:58%;}
+  button{
+    width:100%; border:none; border-radius:14px; padding:18px;
+    font-size:18px; font-weight:700; color:#0d1117;
+    background:var(--accent); margin-top:6px;
+    font-family:inherit;
+  }
+  button:disabled{opacity:0.35;}
+  button.sec{background:var(--surface2); color:var(--text);}
+  .status{margin-top:12px; font-size:15px; min-height:22px; line-height:1.5;}
+  .ok{color:var(--ok);} .bad{color:var(--bad);} .wait{color:var(--wait);}
+  .meter{height:14px; background:var(--surface2); border-radius:7px;
+    overflow:hidden; margin-top:12px;}
+  .meter > i{display:block; height:100%; width:0%;
+    background:linear-gradient(90deg,#4ade80,#fbbf24,#f87171); transition:width 0.1s;}
+  #log{
+    font-family:ui-monospace,Menlo,monospace; font-size:12px; line-height:1.6;
+    color:var(--muted); white-space:pre-wrap; word-break:break-word;
+    max-height:230px; overflow-y:auto;
+  }
+  .hint{font-size:13px; color:var(--muted); line-height:1.6; margin-top:10px;}
+  .big{font-size:17px; font-weight:700; margin:2px 0 8px;}
+</style>
+</head>
+<body>
+
+<h1>Thử Micro + Giọng iPhone</h1>
+<p class="sub">Bấm 2 nút. Đóng app rồi mở lại, bấm thêm lần nữa.</p>
+
+<div class="card">
+  <h2>Tình trạng máy</h2>
+  <div class="row"><span class="k">Đang chạy kiểu</span><span class="v" id="mode">…</span></div>
+  <div class="row"><span class="k">Lần mở thứ</span><span class="v" id="opens">…</span></div>
+  <div class="row"><span class="k">Máy biết đọc</span><span class="v" id="hasTTS">…</span></div>
+  <div class="row"><span class="k">Máy biết thu</span><span class="v" id="hasMic">…</span></div>
+  <div class="row"><span class="k">Giọng tiếng Anh</span><span class="v" id="voice">…</span></div>
+</div>
+
+<div class="card">
+  <h2>Bước 1 — Giọng nói</h2>
+  <div class="big">"The weather is nice today."</div>
+  <button id="btnSpeak">🔊 Đọc câu mẫu</button>
+  <div class="status" id="sSpeak">Chưa thử</div>
+  <div class="hint">Không nghe gì → kiểm nút gạt im lặng bên hông máy và mức âm lượng trước khi kết luận hỏng.</div>
+</div>
+
+<div class="card">
+  <h2>Bước 2 — Micro</h2>
+  <button id="btnRec">🎤 Thu 3 giây</button>
+  <div class="meter"><i id="bar"></i></div>
+  <div class="status" id="sRec">Chưa thử</div>
+  <button id="btnPlay" class="sec" disabled>▶ Nghe lại đoạn vừa thu</button>
+  <div class="hint">Vạch màu phải nhảy khi anh nói. Vạch đứng im = thu được file rỗng, đó mới là lỗi thật.</div>
+</div>
+
+<div class="card">
+  <h2>Nhật ký</h2>
+  <div id="log"></div>
+  <button id="btnCopy" class="sec">Chép nhật ký</button>
+</div>
+
+<script>
+var logEl = document.getElementById('log');
+var lines = [];
+function log(msg){
+  var t = new Date().toTimeString().slice(0,8);
+  lines.push(t + '  ' + msg);
+  logEl.textContent = lines.join('\n');
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function set(id, txt, cls){
+  var el = document.getElementById(id);
+  el.textContent = txt;
+  el.className = el.className.indexOf('status') >= 0 ? 'status ' + (cls||'') : 'v ' + (cls||'');
+}
+
+/* ---------- Tình trạng máy ---------- */
+var standalone = (window.navigator.standalone === true) ||
+                 (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+set('mode', standalone ? 'App màn hình chính' : 'Trong Safari', standalone ? 'ok' : 'wait');
+log('Chế độ: ' + (standalone ? 'standalone (gắn màn hình chính)' : 'trình duyệt thường'));
+
+var opens = 1;
+try {
+  opens = parseInt(localStorage.getItem('micTestOpens') || '0', 10) + 1;
+  localStorage.setItem('micTestOpens', String(opens));
+} catch(e) { log('localStorage chặn: ' + e.message); }
+set('opens', String(opens), opens > 1 ? 'ok' : '');
+log('Lần mở thứ ' + opens);
+
+var ttsOK = ('speechSynthesis' in window);
+set('hasTTS', ttsOK ? 'Có' : 'Không', ttsOK ? 'ok' : 'bad');
+
+var micOK = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) &&
+            (typeof MediaRecorder !== 'undefined');
+set('hasMic', micOK ? 'Có' : 'Không', micOK ? 'ok' : 'bad');
+log('Biết đọc: ' + ttsOK + ' | Biết thu: ' + micOK);
+
+/* ---------- Bước 1: giọng nói ---------- */
+var enVoice = null;
+function pickVoice(){
+  if (!ttsOK) return;
+  var vs = window.speechSynthesis.getVoices() || [];
+  var i;
+  for (i = 0; i < vs.length; i++){
+    if (vs[i].lang && vs[i].lang.toLowerCase().indexOf('en-us') === 0){ enVoice = vs[i]; break; }
+  }
+  if (!enVoice){
+    for (i = 0; i < vs.length; i++){
+      if (vs[i].lang && vs[i].lang.toLowerCase().indexOf('en') === 0){ enVoice = vs[i]; break; }
+    }
+  }
+  if (enVoice){
+    set('voice', enVoice.name, 'ok');
+    log('Giọng chọn: ' + enVoice.name + ' (' + enVoice.lang + ') — tổng ' + vs.length + ' giọng');
+  } else {
+    set('voice', vs.length ? 'Không có giọng Anh' : 'Chưa nạp', vs.length ? 'bad' : 'wait');
+  }
+}
+pickVoice();
+if (ttsOK && window.speechSynthesis.onvoiceschanged !== undefined){
+  window.speechSynthesis.onvoiceschanged = pickVoice;
+}
+
+document.getElementById('btnSpeak').addEventListener('click', function(){
+  if (!ttsOK){ set('sSpeak', 'Máy này không đọc được', 'bad'); return; }
+  pickVoice();
+  window.speechSynthesis.cancel();
+  var u = new SpeechSynthesisUtterance('The weather is nice today.');
+  u.lang = 'en-US';
+  if (enVoice) u.voice = enVoice;
+  u.rate = 0.9;
+  var started = false, ended = false;
+  u.onstart = function(){ started = true; set('sSpeak', 'Đang đọc…', 'wait'); log('TTS: bắt đầu đọc'); };
+  u.onend = function(){
+    ended = true;
+    set('sSpeak', '✅ Đọc xong — anh có nghe thấy tiếng không?', 'ok');
+    log('TTS: đọc xong bình thường');
+  };
+  u.onerror = function(ev){
+    set('sSpeak', '❌ Lỗi khi đọc: ' + (ev.error || 'không rõ'), 'bad');
+    log('TTS LỖI: ' + (ev.error || 'không rõ'));
+  };
+  set('sSpeak', 'Đang gọi…', 'wait');
+  log('TTS: gửi lệnh đọc');
+  window.speechSynthesis.speak(u);
+  setTimeout(function(){
+    if (!started && !ended){
+      set('sSpeak', '❌ Gọi rồi mà máy không đọc (im hoàn toàn)', 'bad');
+      log('TTS LỖI: 6 giây không có phản hồi nào');
+    }
+  }, 6000);
+});
+
+/* ---------- Bước 2: micro ---------- */
+var lastBlob = null, lastUrl = null;
+var bar = document.getElementById('bar');
+
+document.getElementById('btnRec').addEventListener('click', function(){
+  if (!micOK){ set('sRec', 'Máy này không thu được', 'bad'); return; }
+  var btn = this;
+  btn.disabled = true;
+  set('sRec', 'Đang xin quyền micro…', 'wait');
+  log('MIC: xin quyền');
+
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream){
+    log('MIC: được cấp quyền');
+    set('sRec', 'Nói đi anh — còn 3 giây…', 'wait');
+
+    var AC = window.AudioContext || window.webkitAudioContext;
+    var ctx = new AC();
+    if (ctx.state === 'suspended') ctx.resume();
+    var src = ctx.createMediaStreamSource(stream);
+    var an = ctx.createAnalyser();
+    an.fftSize = 512;
+    src.connect(an);
+    var buf = new Uint8Array(an.fftSize);
+    var peak = 0, running = true;
+    function tick(){
+      if (!running) return;
+      an.getByteTimeDomainData(buf);
+      var lvl = 0, i;
+      for (i = 0; i < buf.length; i++){
+        var d = Math.abs(buf[i] - 128);
+        if (d > lvl) lvl = d;
+      }
+      var pct = Math.min(100, (lvl / 128) * 100 * 2.2);
+      if (pct > peak) peak = pct;
+      bar.style.width = pct.toFixed(0) + '%';
+      requestAnimationFrame(tick);
+    }
+    tick();
+
+    var mime = '';
+    var cands = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'];
+    for (var j = 0; j < cands.length; j++){
+      if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(cands[j])){ mime = cands[j]; break; }
+    }
+    log('MIC: định dạng ghi = ' + (mime || 'mặc định của máy'));
+    var rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+    var chunks = [];
+    rec.ondataavailable = function(e){ if (e.data && e.data.size) chunks.push(e.data); };
+    rec.onerror = function(e){ log('MIC LỖI khi ghi: ' + (e.error ? e.error.name : 'không rõ')); };
+    rec.onstop = function(){
+      running = false;
+      bar.style.width = '0%';
+      stream.getTracks().forEach(function(t){ t.stop(); });
+      ctx.close();
+      lastBlob = new Blob(chunks, { type: mime || 'audio/mp4' });
+      if (lastUrl) URL.revokeObjectURL(lastUrl);
+      lastUrl = URL.createObjectURL(lastBlob);
+      var kb = (lastBlob.size / 1024).toFixed(1);
+      log('MIC: thu xong — ' + kb + ' KB, đỉnh âm thanh ' + peak.toFixed(0) + '%');
+      if (lastBlob.size < 1000){
+        set('sRec', '❌ File rỗng (' + kb + ' KB) — máy không thu được tiếng', 'bad');
+      } else if (peak < 6){
+        set('sRec', '⚠️ Có file ' + kb + ' KB nhưng gần như im lặng — micro bị chặn tiếng', 'wait');
+      } else {
+        set('sRec', '✅ Thu được ' + kb + ' KB, đỉnh ' + peak.toFixed(0) + '% — bấm nghe lại', 'ok');
+      }
+      document.getElementById('btnPlay').disabled = false;
+      btn.disabled = false;
+    };
+    rec.start();
+    log('MIC: bắt đầu ghi');
+    setTimeout(function(){ if (rec.state !== 'inactive') rec.stop(); }, 3000);
+
+  }).catch(function(err){
+    set('sRec', '❌ Không vào được micro: ' + err.name, 'bad');
+    log('MIC LỖI: ' + err.name + ' — ' + (err.message || ''));
+    btn.disabled = false;
+  });
+});
+
+document.getElementById('btnPlay').addEventListener('click', function(){
+  if (!lastUrl) return;
+  var a = new Audio(lastUrl);
+  a.onplay = function(){ log('PHÁT: bắt đầu'); };
+  a.onended = function(){ log('PHÁT: xong'); };
+  a.onerror = function(){ log('PHÁT LỖI: không mở được file vừa thu'); };
+  a.play().catch(function(e){ log('PHÁT LỖI: ' + e.name); });
+});
+
+document.getElementById('btnCopy').addEventListener('click', function(){
+  var txt = lines.join('\n');
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){
+      document.getElementById('btnCopy').textContent = 'Đã chép ✓';
+    });
+  }
+});
+
+log('Trang sẵn sàng');
+</script>
+</body>
+</html>
