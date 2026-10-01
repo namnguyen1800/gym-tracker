@@ -418,7 +418,7 @@ const PLAN = {
       {name:'Dumbbell Bulgarian Split Squat', sets:3, weight:0, type:'reps'},
       {name:'Seated Bench Crunch', sets:3, weight:0, type:'reps'},
       {name:'Standing Calf Raise', sets:3, weight:25, type:'reps'},
-      {name:'Plank', sets:2, weight:0, type:'time', rest:90},
+      {name:'Plank', sets:2, weight:0, type:'time', rest:60},
     ]
   },
   thursday:{
@@ -956,8 +956,8 @@ function customRepStep(day,name,delta){
 }
 
 // ---------- Plank target (số giây mục tiêu, dùng chung cho mọi set) ----------
-// Chỉ khởi tạo 1 lần từ kỷ lục hiện có (hoặc 30 nếu chưa có) rồi lưu ngay —
-// từ đó về sau đứng yên, không tự chạy theo kỷ lục mới lập được nữa.
+// Khởi tạo 1 lần từ kỷ lục hiện có (hoặc 30 nếu chưa có). Sau đó chỉ đổi khi Nam
+// bấm −/+ hoặc bấm OK một số mới (startPlankTimer lưu lại số vừa nhập) — không tự chạy theo kỷ lục.
 function getPlankTarget(day, name){
   const k = key(day, name);
   if(!state.plankTarget) state.plankTarget = {};
@@ -1273,6 +1273,10 @@ function startPlankTimer(day, name, rep){
     alert('Invalid time. Enter a positive number of seconds.');
     return;
   }
+  // Nam: "nhớ số nhập cuối, không mặc định 60" — số vừa bấm OK thành mục tiêu cho lần sau
+  if(!state.plankTarget) state.plankTarget = {};
+  state.plankTarget[key(day, name)] = secs;
+  save();
   ensureAudio();
   plankPending = {day, name, rep};
   plankMode = true;
