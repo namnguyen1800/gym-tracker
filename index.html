@@ -227,6 +227,20 @@
   .nav-btn:active{ box-shadow: inset 6px 6px 13px var(--shadow-dark), inset -6px -6px 13px var(--shadow-light); }
   .nav-btn:disabled{opacity:.3;}
 
+  /* ---------- Note view (ghi chú riêng từng bài) ---------- */
+  .note-open{display:block; width:100%; flex:none; margin:2px 0 8px;}
+  #noteView{display:none;}
+  .note-bar{position:sticky; top:0; z-index:15; padding:2px 0 10px;}
+  .note-bar .nav-btn{width:120px; flex:none; height:48px;}
+  .note-title{font-size:22px; font-weight:800; text-align:center; margin:4px 0 14px; line-height:1.25;}
+  .note-text{
+    display:block; width:100%; min-height:55vh; border:none; border-radius:18px; resize:none;
+    background:var(--surface); color:var(--text); font-family:inherit; font-size:17px; line-height:1.5;
+    padding:16px; outline:none;
+    box-shadow: inset 6px 6px 13px var(--shadow-dark), inset -6px -6px 13px var(--shadow-light);
+  }
+  .note-text::placeholder{color:var(--muted);}
+
   .done-banner{
     border-radius:20px; padding:16px; text-align:center; font-size:17px; font-weight:800; margin-bottom:14px;
     background:rgba(52,211,153,0.12); color:#34d399;
@@ -375,6 +389,11 @@
       <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importData(event)">
     </div>
   </div>
+  <div id="noteView">
+    <div class="note-bar"><button class="nav-btn" onclick="closeNote()">‹ Back</button></div>
+    <div class="note-title" id="noteTitle"></div>
+    <textarea class="note-text" id="noteText" placeholder="Ghi chú cho bài này…" oninput="onNoteInput()" spellcheck="false"></textarea>
+  </div>
 </main>
 
 <div id="restOverlay">
@@ -406,7 +425,7 @@ const PLAN = {
     label:'TUESDAY', emoji:'🔵', color:'#60a5fa', title:'Back + Biceps',
     exercises:[
       {name:'One-Arm Dumbbell Row', sets:4, weight:55, type:'reps'},
-      {name:'Chest-Supported Dumbbell Row', sets:3, weight:45, type:'reps'},
+      {name:'EVO Standing Barbell Row', sets:3, weight:60, type:'reps'},
       {name:'Dumbbell Romanian Deadlift (RDL)', sets:3, weight:40, type:'reps'},
       {name:'Hammer Curl', sets:3, weight:35, type:'reps'},
     ]
@@ -414,7 +433,7 @@ const PLAN = {
   wednesday:{
     label:'WEDNESDAY', emoji:'🟡', color:'#fbbf24', title:'Legs + Core',
     exercises:[
-      {name:'Goblet Squat', sets:4, weight:55, type:'reps'},
+      {name:'EVO Front Squat', sets:4, weight:100, type:'reps'},
       {name:'Dumbbell Bulgarian Split Squat', sets:3, weight:0, type:'reps'},
       {name:'Seated Bench Crunch', sets:3, weight:0, type:'reps'},
       {name:'Standing Calf Raise', sets:3, weight:25, type:'reps'},
@@ -426,7 +445,7 @@ const PLAN = {
     exercises:[
       {name:'Dumbbell Shoulder Press', sets:4, weight:40, type:'reps'},
       {name:'Dumbbell Lateral Raise', sets:3, weight:20, type:'reps'},
-      {name:'Tricep Kickback', sets:3, weight:25, type:'reps'},
+      {name:'Overhead Dumbbell Extension', sets:3, weight:35, type:'reps'},
       {name:'Standard Dumbbell Curl', sets:3, weight:20, type:'reps'},
     ]
   }
@@ -490,6 +509,14 @@ try{
   if(!state.customReps) state.customReps = {};
   if(!state.aimSets) state.aimSets = {};
   if(!state.plankTarget) state.plankTarget = {};
+  if(!state.notes) state.notes = {};
+  // Bài mới thêm vào PLAN (đổi bài 2026-10-06): máy cũ chưa có số tạ cho tên mới → điền số khởi đầu.
+  for(const day of DAY_ORDER){
+    for(const ex of PLAN[day].exercises){
+      const wk = day+'|'+ex.name;
+      if(state.weights[wk] === undefined) state.weights[wk] = ex.weight;
+    }
+  }
   if(!state.activeDay) state.activeDay = DAY_ORDER[0];
   if(!state.activeEx) state.activeEx = {monday:0, tuesday:0, wednesday:0, thursday:0};
   if(!Array.isArray(state.undo)) state.undo = [];
@@ -622,6 +649,7 @@ function setStats(day,name,setIndex,weight){
   let highest=null, last=null, highestDate=null;
   const filtered = (weight===undefined || weight===null) ? h : h.filter(en => en.weight === weight);
   for(const en of filtered){
+    if(en.noHigh) continue; // buổi đã bị "Delete HIGHEST" — vẫn nằm trong lịch sử/last, nhưng không tính kỷ lục
     const v = parseInt(en.reps[setIndex]);
     if(!isNaN(v)){ if(highest===null || v>highest){ highest=v; highestDate=en.date; } }
   }
@@ -646,10 +674,44 @@ function setAccent(color){
   document.documentElement.style.setProperty('--accent-soft', 'rgba('+r+','+g+','+b+',0.16)');
 }
 
+// ---------- Note: ghi chú riêng từng bài (khoá = TÊN bài, 2026-10-06) ----------
+// Cùng tên bài thì chung 1 ghi chú (Lateral Raise thứ Hai/thứ Năm). Lưu theo từng lần gõ;
+// Back + pagehide + visibilitychange chỉ là dây an toàn. Không render lại khi gõ.
+let noteName = null;
+
+function openNote(name){
+  setView('note');
+  noteName = name;
+  document.getElementById('noteTitle').textContent = '📝 ' + name;
+  document.getElementById('noteText').value = (state.notes && state.notes[name]) || '';
+  window.scrollTo({top:0});
+}
+
+function onNoteInput(){
+  if(noteName === null) return;
+  if(!state.notes) state.notes = {};
+  const v = document.getElementById('noteText').value;
+  if(v === '') delete state.notes[noteName]; else state.notes[noteName] = v;
+  save();
+}
+
+function closeNote(){
+  onNoteInput();
+  setView('workout');
+  renderWorkout();
+  window.scrollTo({top:0});
+}
+
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) onNoteInput(); });
+window.addEventListener('pagehide', onNoteInput);
+
 // ---------- View ----------
 function setView(v){
+  if(v !== 'note') noteName = null;
   document.getElementById('workoutView').style.display = v==='workout'?'block':'none';
   document.getElementById('historyView').style.display = v==='history'?'block':'none';
+  document.getElementById('noteView').style.display = v==='note'?'block':'none';
+  document.getElementById('tabs').style.display = v==='note'?'none':'';
   document.getElementById('btnWorkout').classList.toggle('on', v==='workout');
   document.getElementById('btnHistory').classList.toggle('on', v==='history');
   if(v==='history') renderHistory();
@@ -809,6 +871,11 @@ function renderWorkout(){
   }else{
     cx += '<button class="delete-btn" disabled>⌫ Nothing to delete</button>';
   }
+  if(hasHighest(day, ex.name)){
+    cx += '<button class="delete-btn" onclick="resetHighest(\''+day+'\',\''+ex.name+'\')">🗑 Delete HIGHEST</button>';
+  }else{
+    cx += '<button class="delete-btn" disabled>🗑 No highest to delete</button>';
+  }
 
   card += wr + sets + disp + (done ? progHint(day,ex.name) : '') + btns + cx;
   card += '</div>';
@@ -819,6 +886,8 @@ function renderWorkout(){
   nav += '<button class="nav-btn" '+(idx===0?'disabled':'')+' onclick="goEx(-1)">‹ Prev</button>';
   nav += '<button class="nav-btn" '+(idx>=total-1?'disabled':'')+' onclick="goEx(1)">Next ›</button>';
   nav += '</div>';
+  const hasNote = !!(state.notes && state.notes[ex.name]);
+  nav += '<button class="nav-btn note-open" onclick="openNote(\''+ex.name+'\')">📝 Note'+(hasNote?' ●':'')+'</button>';
   list.innerHTML += nav;
 
   // swipe
@@ -878,6 +947,7 @@ function commitRep(day,name,ex,k,rep){
   const _w = state.weights[k];
   let _best = -1;
   for(const _e of _hist){
+    if(_e.noHigh) continue; // đã reset kỷ lục → buổi này không còn là mốc để phá
     if(String(_e.weight) === String(_w) && _e.reps && _e.reps[_setIdx] != null){
       const _v = parseInt(_e.reps[_setIdx]);
       if(!isNaN(_v) && _v > _best) _best = _v;
@@ -1048,6 +1118,25 @@ function deleteRep(day,name){
   }
 
   stopRestTimer();
+  save();
+  renderWorkout();
+}
+
+// ---------- Reset highest: tính kỷ lục của 1 bài lại từ đầu (2026-10-06) ----------
+// Không xoá lịch sử: chỉ đánh dấu mọi buổi hiện có là noHigh. setStats() và vòng pháo hoa
+// trong commitRep bỏ qua buổi noHigh khi tìm kỷ lục; "last" và tab Progress vẫn dùng đủ các buổi.
+// Áp cho mọi set và mọi mức tạ của bài đó. Pin AIM của bài đó cũng bỏ (giống lúc tăng tạ):
+// pin cũ chụp từ số đã không còn tính, giữ lại thì AIM đỏ đứng sai chỗ.
+function hasHighest(day,name){
+  const h = state.history[key(day,name)]||[];
+  return h.some(en => !en.noHigh && en.reps && en.reps.some(r => !isNaN(parseInt(r))));
+}
+
+function resetHighest(day,name){
+  if(!hasHighest(day,name)) return;
+  if(!confirm('Xoá kỷ lục "'+name+'"?\n\nHighest của mọi set sẽ tính lại từ buổi tập sau. Lịch sử vẫn giữ nguyên.')) return;
+  for(const en of (state.history[key(day,name)]||[])) en.noHigh = true;
+  delete state.aimSets[key(day,name)];
   save();
   renderWorkout();
 }
