@@ -1381,7 +1381,7 @@ function startPlankTimer(day, name, rep){
   plankTimer = setInterval(()=>{
     plankRemaining--;
     updatePlankNum();
-    if(plankRemaining === 2 || plankRemaining === 1) playBeep();
+    if(plankRemaining === 1) playBeep();
     if(plankRemaining <= 0){
       stopPlankTimer();
       playBeep();
@@ -1413,7 +1413,7 @@ function ensureAudio(){
     try{ navigator.audioSession.type = 'ambient'; }catch(e){}
   }
   if(!beepAudio){
-    beepAudio = new Audio('beep.wav');
+    beepAudio = new Audio('beep.wav?v=2');
     alarmAudio = new Audio('alarm.wav');
     beepAudio.preload = 'auto';
     alarmAudio.preload = 'auto';
@@ -1501,7 +1501,7 @@ function startRestTimer(seconds, aimDay, aimName){
   restTimer = setInterval(()=>{
     restRemaining--;
     updateRestNum();
-    if(restRemaining === 2 || restRemaining === 1){
+    if(restRemaining === 1){
       playBeep();
     }
     if(restRemaining <= 0){
