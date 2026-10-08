@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#14161d">
+<title>Thử Tiếng Bíp</title>
+<style>
+  :root{ --bg:#14161d; --s:#1b1e27; --t:#eef1f7; --m:#8a93a6; --ok:#4ade80; --bad:#f87171; --a:#60a5fa; }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; background:var(--bg); color:var(--t); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; padding:18px 16px 40px;}
+  h1{font-size:20px; margin:0 0 6px;}
+  p{color:var(--m); font-size:14px; line-height:1.5; margin:0 0 14px;}
+  ol{color:var(--m); font-size:14px; line-height:1.6; padding-left:20px; margin:0 0 16px;}
+  button{display:block; width:100%; text-align:left; background:var(--s); color:var(--t); border:1px solid #2c3240; border-radius:14px; padding:16px; margin:0 0 12px; font-size:17px; font-weight:700;}
+  button small{display:block; color:var(--m); font-weight:400; font-size:13px; margin-top:4px;}
+  button:active{border-color:var(--a);}
+  #log{font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--m); white-space:pre-wrap; background:var(--s); border-radius:10px; padding:10px; margin-top:8px;}
+</style>
+</head>
+<body>
+<h1>Thử tiếng bíp với YouTube</h1>
+<ol>
+  <li>Mở YouTube, bật 1 video (cửa sổ nổi nhỏ cũng được), để nó chạy.</li>
+  <li>Quay lại trang này, bấm <b>từng nút</b> một. Mỗi nút kêu 3 tiếng bíp giống lúc hết giờ nghỉ.</li>
+  <li>Ghi lại: nút nào <b>YouTube vẫn chạy</b> và anh <b>nghe rõ</b> tiếng bíp.</li>
+</ol>
+<p>Nút D là cách app đang làm bây giờ — nó <b>phải</b> làm dừng YouTube. Nếu D cũng không dừng thì bài thử này không đo đúng, báo mình.</p>
+
+<button onclick="run('A')">A — Âm thanh nền<small>Mong đợi: YouTube chạy tiếp, bíp chồng lên. Nút gạt im lặng bật thì bíp im.</small></button>
+<button onclick="run('B')">B — Nhỏ YouTube tạm<small>Mong đợi: YouTube nhỏ xuống lúc bíp rồi to lại.</small></button>
+<button onclick="run('C')">C — Kiểu bíp cũ (Web Audio)<small>Mong đợi: không dừng YouTube, nhưng có thể nhỏ.</small></button>
+<button onclick="run('D')">D — Cách app đang làm (đối chứng)<small>Mong đợi: YouTube BỊ DỪNG.</small></button>
+
+<div id="log"></div>
+
+<script>
+var logEl = document.getElementById('log');
+function log(s){ logEl.textContent = s + '\n' + logEl.textContent; }
+var hasSession = !!(navigator.audioSession);
+log('Máy có hỗ trợ "audioSession": ' + (hasSession ? 'CÓ' : 'KHÔNG') + (hasSession ? ' (hiện tại: ' + navigator.audioSession.type + ')' : ''));
+
+function setType(t){
+  if(!hasSession) return;
+  try{ navigator.audioSession.type = t; }catch(e){ log('Đặt kiểu lỗi: ' + e.name); }
+}
+
+function playEl(){
+  var a = new Audio('../beep.wav');
+  a.play().catch(function(e){ log('Phát lỗi: ' + e.name); });
+}
+
+var ctx = null, buf = null;
+function playCtx(){
+  var AC = window.AudioContext || window.webkitAudioContext;
+  if(!ctx) ctx = new AC();
+  if(ctx.state === 'suspended') ctx.resume();
+  function go(){ var s = ctx.createBufferSource(); s.buffer = buf; s.connect(ctx.destination); s.start(); }
+  if(buf){ go(); return; }
+  fetch('../beep.wav').then(function(r){ return r.arrayBuffer(); })
+    .then(function(ab){ return new Promise(function(res,rej){ ctx.decodeAudioData(ab,res,rej); }); })
+    .then(function(b){ buf = b; go(); })
+    .catch(function(e){ log('Web Audio lỗi: ' + e); });
+}
+
+function run(k){
+  var type = {A:'ambient', B:'transient', C:'auto', D:'auto'}[k];
+  setType(type);
+  log('Nút ' + k + ' — kiểu: ' + (hasSession ? navigator.audioSession.type : '(không hỗ trợ)'));
+  var play = (k === 'C') ? playCtx : playEl;
+  play();
+  setTimeout(play, 1000);
+  setTimeout(play, 2000);
+}
+</script>
+</body>
+</html>
