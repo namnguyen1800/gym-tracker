@@ -1408,6 +1408,10 @@ let restRemaining = 0;
 let beepAudio = null, alarmAudio = null;
 
 function ensureAudio(){
+  // 'ambient' = mix with YouTube instead of pausing it (iOS Safari; tested 2026-10-07 via sound-test/)
+  if(navigator.audioSession && navigator.audioSession.type !== 'ambient'){
+    try{ navigator.audioSession.type = 'ambient'; }catch(e){}
+  }
   if(!beepAudio){
     beepAudio = new Audio('beep.wav');
     alarmAudio = new Audio('alarm.wav');
